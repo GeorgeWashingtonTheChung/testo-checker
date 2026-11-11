@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TESTOSTERONE CHECKER™ — scientifically rigorous*</title>
+<title>Apex T — the Testosterone Index™</title>
 <meta name="theme-color" content="#0d0f14">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="T-Checker">
+<meta name="apple-mobile-web-app-title" content="Apex T">
 <!-- v2: rulebook retired -> single Live Incident Report w/ custom delta.
      |delta|>=15 = pending proposal needing peer approval. 7-day log expiry (folds into scores).
      Tap a name on the board to make them the subject. PWA: +5 for home-screen install.
@@ -108,8 +108,8 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 <body>
 <div class="wrap">
 <header>
-  <h1>⬤ TESTOSTERONE <b>CHECKER™</b></h1>
-  <div class="sub">The only app that measures your T with 0% scientific rigour*. Live-synced to everyone.</div>
+  <h1>◤◢ APEX <b>T</b></h1>
+  <div class="sub">The Testosterone Index™ — 0% scientific rigour*, live-synced to everyone. Scale: −500 … +500.</div>
   <div class="sub fine">*rigour: none. methodology: vibes. incidents age out after 7 days — history is written in protein powder.</div>
   <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span><button id="syncbtn" title="Force refresh">⟳</button></div>
 </header>
@@ -133,7 +133,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
         <button id="addp" style="flex:0 0 auto">Enroll ➤</button>
       </div>
       <ul class="lb" id="lb"></ul>
-      <div class="small">Scores start at <b>50</b> (baseline). The scale officially ends at 0 — unofficially it goes below. <b>Tap a name</b> to make them the subject.</div>
+      <div class="small">Scores start at <b>50</b> (baseline). The index spans <b>−500 to +500</b> — the scale officially ends at 0, unofficially it goes much, much lower. <b>Tap a name</b> to make them the subject.</div>
       <div class="hs" id="hs"></div>
     </div>
   </div>
@@ -191,12 +191,14 @@ function scoreOf(pid){
 }
 function tier(s){
   if(s===null) return "no subject";
-  if(s>=85) return "GIGACHAD";
-  if(s>=65) return "ALPHA";
-  if(s>=45) return "CERTIFIED BRO";
-  if(s>=25) return "BETA";
-  if(s>=0)  return "SOY-ADJACENT";
-  if(s>=-30) return "GRAVITY WELL";
+  if(s>=400) return "T SINGULARITY";
+  if(s>=200) return "GIGACHAD";
+  if(s>=100) return "MEGA ALPHA";
+  if(s>=60)  return "ALPHA";
+  if(s>=25)  return "CERTIFIED BRO";
+  if(s>=0)   return "BETA";
+  if(s>=-60) return "SOY-ADJACENT";
+  if(s>=-200) return "GRAVITY WELL";
   return "TESTOSTERONE BLACK HOLE";
 }
 function ago(t){
@@ -268,7 +270,7 @@ function flashToast(m){ const t=document.getElementById("toast"); t.textContent=
   clearTimeout(flashToast._t); flashToast._t=setTimeout(()=>t.classList.remove("show"),2200); }
 function ingest(snap){
   if(snap && snap.rev!==undefined){
-    if(merge(snap)){ render(); flashToast("updated from the group"); }
+    if(merge(snap)){ render(); flashToast("updated from the group"); fateRoll(); }
   }
 }
 function connect(){
@@ -330,11 +332,45 @@ function bootstrap(){
       const aged=pruneExpired();
       render(); setPill(true);
       if(aged){ state.rev++; publish(); }
+      fateRoll();
       connect();
     })
     .catch(()=>{ setPill(false,"offline — retrying"); scheduleRepoll(); connect(); });
 }
 function scheduleRepoll(){ clearTimeout(reconnectTimer); reconnectTimer=setTimeout(()=>{ if(!dirty) bootstrap(); },6000); }
+
+/* ============ fate: quiet daily events (nobody is told this exists) ============
+   Deterministic per UTC day so every client computes the same roll; applied once,
+   deduped by event id. ~95% of days are plain. Cumulative odds:
+   <0.001 singularity (+222, one random subject)
+   <0.005 great balancing (everyone drifts 30% toward 50)
+   <0.025 accidental mogging (+33, random subject)
+   <0.05  existential dip (−11, random subject)                    */
+function fateRoll(){
+  if(!state || dirty || Object.keys(state.players).length===0) return;
+  const ds=new Date().toISOString().slice(0,10);
+  const fid="fate-"+ds;
+  if(state.events.some(e=>String(e.id).indexOf(fid)===0)) return;
+  let h=2166136261>>>0;
+  for(const c of ds+"apex-t-fate"){ h^=c.charCodeAt(0); h=Math.imul(h,16777619)>>>0; }
+  const rnd=()=>{ h^=h<<13; h>>>=0; h^=h>>>17; h^=h<<5; h>>>=0; return h/4294967296; };
+  const roll=rnd();
+  const ids=Object.keys(state.players).sort();
+  const pick=()=>state.players[ids[Math.floor(rnd()*ids.length)]];
+  const t=Date.now();
+  let adds=null;
+  if(roll<0.001){ const p=pick(); adds=[{id:fid,p:p.id,d:222,x:"a wild goose conferred rank upon them",t,ap:"fate"}]; }
+  else if(roll<0.005){
+    adds=ids.map(id=>{ const cur=scoreOf(id); const d=Math.round((50-cur)*0.3);
+      return d? {id:fid+"-"+id,p:id,d,x:"the universe briefly balanced itself",t,ap:"fate"}:null; }).filter(Boolean);
+    if(!adds.length) return;
+  }
+  else if(roll<0.025){ const p=pick(); adds=[{id:fid,p:p.id,d:33,x:"an accidental mogging streak went unnoticed",t,ap:"fate"}]; }
+  else if(roll<0.05){ const p=pick(); adds=[{id:fid,p:p.id,d:-11,x:"forgot the lyrics to their own anthem",t,ap:"fate"}]; }
+  else return;
+  mutate(st=>{ for(const a of adds) st.events.push(a); st.events=st.events.slice(-MAX_EVENTS); });
+}
+setInterval(fateRoll,60000);
 
 /* ============ UI ============ */
 const $=id=>document.getElementById(id);
@@ -343,13 +379,13 @@ function buildGauge(){
   $("gaugewrap").innerHTML=`
   <svg width="300" height="170" viewBox="0 0 300 170" style="max-width:100%;height:auto">
     <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ff4d5e"/><stop offset=".5" stop-color="#f5b942"/><stop offset="1" stop-color="#39d98a"/>
+      <stop offset="0" stop-color="#ff4d5e"/><stop offset=".25" stop-color="#ff8a4d"/><stop offset=".5" stop-color="#f5b942"/><stop offset=".75" stop-color="#8ad46a"/><stop offset="1" stop-color="#39d98a"/>
     </linearGradient></defs>
     <path d="M20 150 A130 130 0 0 1 280 150" fill="none" stroke="#222938" stroke-width="22" stroke-linecap="round"/>
     <path d="M20 150 A130 130 0 0 1 280 150" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" opacity=".85"/>
-    <text x="16" y="166" fill="#8a93a6" font-size="10">0</text>
-    <text x="145" y="12" fill="#8a93a6" font-size="10">50</text>
-    <text x="277" y="166" fill="#8a93a6" font-size="10">100</text>
+    <text x="10" y="166" fill="#8a93a6" font-size="10">−500</text>
+    <text x="140" y="12" fill="#8a93a6" font-size="10">0</text>
+    <text x="268" y="166" fill="#8a93a6" font-size="10">+500</text>
     <g id="needle" class="needle" style="--rot:0deg">
       <line x1="150" y1="150" x2="150" y2="42" stroke="#e8ecf4" stroke-width="4" stroke-linecap="round"/>
       <circle cx="150" cy="150" r="10" fill="#e8ecf4"/>
@@ -366,8 +402,8 @@ function render(){
 
   $("lb").innerHTML = players.length? players.map((p,i)=>{
     const bar=p.score<0
-      ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,2,100)/2}%"></i></div>`
-      : `<div class="bar"><i style="width:${clamp(p.score,0,100)}%"></i></div>`;
+      ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,5,500)/5}%"></i></div>`
+      : `<div class="bar"><i style="width:${clamp(p.score,0,500)/5}%"></i></div>`;
     const hb = STANDALONE && !p.hs ? `<button class="hbtn" data-hs="${p.id}">📱 +5</button>` : "";
     return `<li class="${p.id===viewing?"sel":""}"><span class="rank">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${esc(p.name)}${p.id===viewing?" ◀":" tap"}</button>${hb}${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
   }).join("") : `<div class="empty">nobody enrolled. the study is just you and your own baseline.</div>`;
@@ -380,7 +416,7 @@ function render(){
     tr.textContent=tier(s); tr.classList.toggle("neg",s<0);
     const p=state.players[viewing];
     $("who").textContent = p? `${p.name} · ${state.events.filter(e=>e.p===viewing&&isLive(e)).length} incidents on record` : "";
-    const ang = clamp(s,0,100)/100*180-90;
+    const ang = clamp(s,-500,500)/1000*180-90;
     if(nd){ nd.style.setProperty("--rot",`rotate(${ang}deg)`); nd.style.transform=`rotate(${ang}deg)`;
       if(lastScore!==null&&lastScore!==s){ nd.classList.remove("spiked"); void nd.offsetWidth; nd.classList.add("spiked"); }
       lastScore=s; }
