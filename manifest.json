@@ -1,7 +1,7 @@
 {
- "name": "Testosterone Checker",
- "short_name": "T-Checker",
- "description": "The only app that measures your T with 0% scientific rigour.",
+ "name": "Apex T \u2014 Testosterone Index",
+ "short_name": "Apex T",
+ "description": "The only index that measures your T with 0% scientific rigour.",
  "start_url": ".",
  "scope": ".",
  "display": "standalone",
