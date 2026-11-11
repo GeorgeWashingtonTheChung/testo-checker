@@ -717,18 +717,16 @@ window.addEventListener("load",()=>{
   $("pclose").onclick=()=>$("prefs").hidden=true;
 
   // --- the bench (hidden minigame, silent gains, one set per member per day) ---
-  const GZONE=[30,18,10],GREWARD=[5,7,10],GSPEED=[0.045,0.075,0.115];
-  let gDiff=0,gZoneL=0,gMark=0,gDir=1,gRaf=null;
-  function gymOpen(){ $("gym").hidden=false; placeZone(); if(!gRaf) gStep(performance.now()); }
+  const GZONE=[30,18,10],GREWARD=[5,7,10],GPERIOD=[2200,1300,800];
+  let gDiff=0,gZoneL=0,gTimer=null,gT0=0;
+  window.gPosAt=t=>{ const P=GPERIOD[gDiff]; let u=((t-gT0)%P)/P; const v=u<0.5?u*2:2-u*2; return v*97; };
+  function gymOpen(){ $("gym").hidden=false; placeZone(); gT0=performance.now();
+    if(!gTimer) gTimer=setInterval(()=>{ if($("gym").hidden){clearInterval(gTimer);gTimer=null;return;}
+      $("gmark").style.left=window.gPosAt(performance.now())+"%"; },33); }
   function placeZone(){ const w=GZONE[gDiff]; gZoneL=Math.random()*(100-w);
     $("gzone").style.left=gZoneL+"%"; $("gzone").style.width=w+"%"; }
-  let gLast=0;
-  function gStep(t){ const dt=t-(gLast||t); gLast=t;
-    gMark+=gDir*GSPEED[gDiff]*dt;
-    if(gMark>97){gMark=97;gDir=-1;} if(gMark<0){gMark=0;gDir=1;}
-    $("gmark").style.left=gMark+"%";
-    if(!$("gym").hidden) gRaf=requestAnimationFrame(gStep); else gRaf=null; }
   $("gstop").onclick=()=>{
+    const gMark=window.gPosAt(performance.now());
     const ok=gMark>=gZoneL && gMark<=gZoneL+GZONE[gDiff];
     if(!ME || ME.id===""){ $("gmsg").textContent="the weights respect nobody without an identity. say who you are first."; return; }
     const today=new Date().toISOString().slice(0,10);
@@ -742,7 +740,7 @@ window.addEventListener("load",()=>{
   };
   $("gym").querySelector(".gdiff").addEventListener("click",e=>{
     const b=e.target.closest("[data-gd]"); if(!b) return;
-    gDiff=Number(b.dataset.gd);
+    gDiff=Number(b.dataset.gd); gT0=performance.now();
     document.querySelectorAll(".gdiff button").forEach(x=>x.classList.toggle("gd-on",x===b));
     placeZone();
   });
