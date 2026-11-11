@@ -223,20 +223,11 @@ function serialize(){
 }
 
 function merge(remote){
-  if(!remote || typeof remote.rev!=="number") return false;
+  if(!remote || typeof remote.rev!=="number" || !remote.players || !remote.rules) return false;
   if(!state){state=remote;return true;}
-  if(remote.rev<=state.rev && remote.rev!==state.rev) {
-    // still union ids (parallel edits) if same-ish revision
-  }
-  if(remote.rev>state.rev){
-    const players={...state.players,...remote.players};
-    const rmap=new Map(state.rules.map(r=>[r.id,r]));
-    for(const r of remote.rules) rmap.set(r.id,r);
-    const emap=new Map(state.events.map(e=>[e.id,e]));
-    for(const e of remote.events) emap.set(e.id,e);
-    state={rev:remote.rev,players,rules:[...rmap.values()],events:[...emap.values()]};
-    return true;
-  }
+  // Snapshots are authoritative supersets: adopt the newer one wholesale.
+  // (Union-merging re-adds events already folded into newer bases -> double count.)
+  if(remote.rev>state.rev){ state=remote; return true; }
   return false;
 }
 function publish(){
@@ -278,7 +269,7 @@ function pickNewest(text){
     if(!l.trim()) continue;
     try{
       const s=JSON.parse(JSON.parse(l).message);
-      if(s && typeof s.rev==="number" && (!best || s.rev>best.rev)) best=s;
+      if(s && typeof s.rev==="number" && s.players && s.rules && (!best || s.rev>best.rev)) best=s;
     }catch(_){}
   }
   return best;
@@ -294,25 +285,19 @@ function repoll(){
 setInterval(repoll,25000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ repoll(); if(es&&es.readyState===2) connect(); } });
 function bootstrap(){
-  // replay every cached snapshot oldest→newest, union-merging so no single
-  // message (or trimmed history) can wipe players/rules
+  // Snapshots are authoritative supersets (old events are folded into player
+  // bases before publish), so adopt the single highest-rev message we can find.
+  // (Replaying/unioning history would double-count already-folded events.)
   fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc")
     .then(r=>r.ok?r.text():Promise.reject(0))
     .then(txt=>{
-      const lines=txt.split("\n").filter(Boolean);
-      let acc=null;
-      for(const l of lines){
+      let best=null;
+      for(const l of txt.split("\n")){
+        if(!l.trim()) continue;
         let s=null; try{ s=JSON.parse(JSON.parse(l).message); }catch(_){ continue; }
-        if(!s || typeof s.rev!=="number") continue;
-        if(!acc){ acc=s; continue; }
-        const players={...acc.players,...s.players};
-        const rmap=new Map(acc.rules.map(r=>[r.id,r]));
-        for(const r of s.rules) rmap.set(r.id,r);
-        const emap=new Map(acc.events.map(e=>[e.id,e]));
-        for(const e of s.events) emap.set(e.id,e);
-        acc={rev:Math.max(acc.rev,s.rev),players,rules:[...rmap.values()],events:[...emap.values()]};
+        if(s && typeof s.rev==="number" && s.players && s.rules && (!best||s.rev>=best.rev)) best=s;
       }
-      if(acc && acc.rev>=(state?state.rev:0)){ state=acc; render(); setPill(true); }
+      if(best && (!state||best.rev>=state.rev)){ state=best; render(); setPill(true); }
       else if(!state){ state=seedState(); render(); publish(); }
       connect();
     })
