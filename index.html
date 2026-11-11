@@ -158,6 +158,7 @@ let state = null;                // {rev,players,rules,events}
 let myName = localStorage.getItem("testo_me") || "";
 let viewing = "";
 let dirty = false, pubTimer = null, es = null, reconnectTimer = null;
+let streaming = false, sseRetry = null;
 
 const uid = () => Math.random().toString(36).slice(2,8);
 
@@ -253,19 +254,31 @@ function setPill(ok,msg){
   p.classList.toggle("off",!ok);
   document.getElementById("pilltxt").textContent = msg || (ok?"live-synced":"offline — retrying");
 }
+function ingest(snap){
+  if(snap && snap.rev!==undefined){
+    const changed=merge(snap);
+    if(changed){render(); flashToast("updated from the group");}
+  }
+}
 function connect(){
   if(es) es.close();
-  es=new EventSource(BASE+TOPIC);
-  es.onmessage=ev=>{
-    let snap=null; try{snap=JSON.parse(ev.data);}catch(_){return;}
-    if(snap && snap.rev!==undefined){
-      const changed=merge(snap);
-      if(changed){render(); flashToast("updated from the group");}
-    }
+  es=new EventSource(BASE+TOPIC+"/sse");   // /sse = EventSource-compatible format
+  es.onmessage=ev=>{ let snap=null; try{snap=JSON.parse(ev.data);}catch(_){return;} ingest(snap); };
+  es.onopen=()=>{ streaming=true; setPill(true); };
+  es.onerror=()=>{ streaming=false; setPill(false,"live link down — polling");
+    // EventSource auto-reconnects on transient drops; hard failures need a fresh one
+    clearTimeout(sseRetry); sseRetry=setTimeout(()=>{ if(es && es.readyState===2) connect(); },5000);
   };
-  es.onopen=()=>setPill(true);
-  es.onerror=()=>{ setPill(false); };
 }
+/* fallback: poll the cached snapshot so a killed stream still converges within ~25s */
+function repoll(){
+  if(!dirty){
+    fetch(BASE+TOPIC+"/json?poll=1").then(r=>r.ok?r.text():Promise.reject(0)).then(t=>{
+      try{ const m=JSON.parse(t); if(m.message){const s=JSON.parse(m.message); if(s && s.rev){ if(!streaming) setPill(true,"synced (polling)"); ingest(s); } } }catch(_){}
+    }).catch(()=>setPill(false,"offline — retrying"));
+  }
+}
+setInterval(repoll,25000);
 function bootstrap(){
   // fetch every cached snapshot, apply the newest (server keeps latest ~256 msgs)
   fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc")
