@@ -416,7 +416,7 @@ function render(){
     tr.textContent=tier(s); tr.classList.toggle("neg",s<0);
     const p=state.players[viewing];
     $("who").textContent = p? `${p.name} · ${state.events.filter(e=>e.p===viewing&&isLive(e)).length} incidents on record` : "";
-    const ang = clamp(s,-500,500)/1000*180-90;
+    const ang = clamp(s,-500,500)/1000*180;
     if(nd){ nd.style.setProperty("--rot",`rotate(${ang}deg)`); nd.style.transform=`rotate(${ang}deg)`;
       if(lastScore!==null&&lastScore!==s){ nd.classList.remove("spiked"); void nd.offsetWidth; nd.classList.add("spiked"); }
       lastScore=s; }
