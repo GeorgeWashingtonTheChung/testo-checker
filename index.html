@@ -736,9 +736,9 @@ window.addEventListener("load",()=>{
   $("pclose").onclick=()=>$("prefs").hidden=true;
 
   // --- the bench (hidden minigame, silent gains, one set per member per day) ---
-  const GZONE=[30,18,10],GREWARD=[5,7,10],GPERIOD=[2200,1300,800];
+  const GZONE=[30,18,10],GREWARD=[5,7,10],GPERIOD=[1600,1100,750];
   let gDiff=0,gZoneL=0,gTimer=null,gT0=0;
-  window.gPosAt=t=>{ const P=GPERIOD[gDiff]; let u=((t-gT0)%P)/P; const v=u<0.5?u*2:2-u*2; return v*97; };
+  window.gPosAt=t=>{ const u=(t-gT0)/GPERIOD[gDiff]; return u>1?99:u*97; };
   function renderHof(){
     const h=$("hof"); if(!h) return;
     const rows=Object.values(state.players).filter(p=>p.gc).sort((a,b)=>b.gm[1]-a.gm[1]||b.gc-a.gc);
@@ -754,7 +754,7 @@ window.addEventListener("load",()=>{
     $("gzone").style.left=gZoneL+"%"; $("gzone").style.width=w+"%"; }
   $("gstop").onclick=()=>{
     const gMark=window.gPosAt(performance.now());
-    const ok=gMark>=gZoneL && gMark<=gZoneL+GZONE[gDiff];
+    const ok=gMark<=97 && gMark>=gZoneL && gMark<=gZoneL+GZONE[gDiff];
     if(!ME || ME.id===""){ $("gmsg").textContent="the weights respect nobody without an identity. say who you are first."; return; }
     const today=new Date().toISOString().slice(0,10);
     if(ok){
@@ -774,8 +774,8 @@ window.addEventListener("load",()=>{
         ? "record night — "+acc+"% on the "+["PINK","GARAGE","QUINN"][gDiff]+" bar. but muscles need 24h for gains."
         : "✓ locked out. +"+GREWARD[gDiff]+" absorbed"+(isRec?" — NEW RECORD: "+acc+"% centred":"")+" — the log never saw it.";
       ding(700);
-    } else { $("gmsg").textContent="the bar folded you like a lawn chair."; ding(140); }
-    placeZone();
+    } else { $("gmsg").textContent = gMark>97 ? "too slow — the bar left without you." : "the bar folded you like a lawn chair."; ding(140); }
+    gT0=performance.now(); placeZone();
   };
   $("gym").querySelector(".gdiff").addEventListener("click",e=>{
     const b=e.target.closest("[data-gd]"); if(!b) return;
