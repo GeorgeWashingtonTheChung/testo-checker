@@ -121,6 +121,9 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 .gdiff button small{display:block;color:var(--mut)}
 .gdiff .gd-on{border-color:var(--gold);color:var(--gold)}.gdiff .gd-on small{color:var(--gold)}
 .gtrack{position:relative;height:44px;background:#0b0d12;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:14px 0}
+.hof{margin-top:14px;text-align:left;font-size:12px}
+.hofhd{color:var(--gold);font:700 10px/1.6 monospace;letter-spacing:.08em;margin-bottom:4px}
+.hofrow{color:#b9c2d4;padding:2px 0;border-bottom:1px dashed #1d2433}
 .gzone{position:absolute;top:0;bottom:0;background:rgba(107,207,111,.25);border-left:1px solid #6bcf6f;border-right:1px solid #6bcf6f}
 .gmark{position:absolute;top:0;bottom:0;width:5px;background:var(--gold);border-radius:2px}
 .gstop{width:100%;padding:13px;font-size:13px;letter-spacing:.15em;border-radius:10px;border:1px solid var(--gold);color:var(--gold);background:rgba(255,204,0,.08);cursor:pointer;font-family:var(--disp)}
@@ -145,8 +148,10 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 <div id="idmask" hidden>
   <div class="idcard">
     <h2>Who are you?</h2>
-    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Your identity is required to approve big swings, and no one can spend your name for you.</p>
+    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Wearing a name requires a one-time authorisation code from the board; the code burns after use. Observing is free.</p>
+    <input id="idpw" placeholder="one-time authorisation code" maxlength="40" autocomplete="off" spellcheck="false" style="width:100%;background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:10px;color:#fff;margin:0 0 10px">
     <div id="idlist"></div>
+    <div id="idout" class="idsub" style="margin:8px 0 0"></div>
     <button class="obs" id="idobs">Just watching (observer)</button>
   </div>
 </div>
@@ -207,6 +212,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
     <div class="gdiff"><button data-gd="0" class="gd-on">1 · pink dumbbells <small>+5</small></button><button data-gd="1">2 · garage set <small>+7</small></button><button data-gd="2">3 · QUINN <small>+10</small></button></div>
     <div class="gtrack"><div class="gzone" id="gzone"></div><div class="gmark" id="gmark"></div></div>
     <button class="gstop" id="gstop">STOP THE BAR</button>
+    <div class="hof" id="hof"></div>
     <div class="idsub" id="gmsg" style="margin-top:12px">gains do not appear in the incident log. muscles do not lie.</div>
     <button class="obs" id="gclose" style="position:absolute;top:12px;right:12px;width:auto;padding:4px 10px">✕</button>
   </div>
@@ -505,7 +511,7 @@ function render(){
     const bar=p.score<0
       ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,5,500)/5}%"></i></div>`
       : `<div class="bar"><i style="width:${clamp(p.score,0,500)/5}%"></i></div>`;
-    return `<li class="${p.id===viewing?"sel":""}"><span class="rank" data-rk="${i}">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${p.av?esc(p.av)+" ":""}${esc(p.name)}${p.id===viewing?" ◀":" tap"}${p.hs?" 📱":""}</button>${p.id===viewing?`<button class="rnbtn" data-rn="${p.id}">✎</button>`:""}${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
+    return `<li class="${p.id===viewing?"sel":""}"><span class="rank" data-rk="${i}">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${p.av?esc(p.av)+" ":""}${esc(p.name)}${p.id===viewing?" ◀":""}${p.hs?" 📱":""}</button>${p.id===viewing?`<button class="rnbtn" data-rn="${p.id}">✎</button>`:""}${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
   }).join("") : `<div class="empty">nobody enrolled. the study is just you and your own baseline.</div>`;
 
   const s = viewing!==""? scoreOf(viewing):null;
@@ -623,8 +629,21 @@ window.addEventListener("load",()=>{
     const pick=e.target.closest("[data-pick]");
     if(pick){ viewing=(viewing===pick.dataset.pick?"":pick.dataset.pick); render(); return; }
   });
-  $("idlist").addEventListener("click",e=>{
-    const b=e.target.closest("[data-me]"); if(b) setMe(b.dataset.me);
+  $("idlist").addEventListener("click",async e=>{
+    const b=e.target.closest("[data-me]"); if(!b) return;
+    const pid=b.dataset.me, out=$("idout");
+    if(ME && ME.id===pid){ $("idmask").hidden=true; return; }
+    if(!state.pw){ out.textContent="no authorisation codes issued yet"; return; }
+    const pw=$("idpw").value.trim();
+    if(!pw){ out.textContent="a one-time code is required to wear a name"; return; }
+    if(await pwHash(pw)!==state.pw){ out.textContent="✕ wrong code — or it was already burned"; ding(140); return; }
+    const nextPw=(await shaHex(pw+"|apex-rot")).slice(0,10).toUpperCase();
+    const newHash=await pwHash(nextPw);
+    mutate(st=>{ st.pw=newHash; });
+    setMe(pid);
+    $("idmask").hidden=false;
+    out.innerHTML="locked in as <b>"+esc(state.players[pid].name)+"</b> · next one-time code: <b style='color:var(--gold)'>"+nextPw+"</b> — pass it to whom the board shall next anoint.";
+    setTimeout(()=>{ $("idmask").hidden=true; },5000);
   });
   $("idobs").onclick=()=>setMe("");
   $("pending").addEventListener("click",e=>{
@@ -720,7 +739,15 @@ window.addEventListener("load",()=>{
   const GZONE=[30,18,10],GREWARD=[5,7,10],GPERIOD=[2200,1300,800];
   let gDiff=0,gZoneL=0,gTimer=null,gT0=0;
   window.gPosAt=t=>{ const P=GPERIOD[gDiff]; let u=((t-gT0)%P)/P; const v=u<0.5?u*2:2-u*2; return v*97; };
-  function gymOpen(){ $("gym").hidden=false; placeZone(); gT0=performance.now();
+  function renderHof(){
+    const h=$("hof"); if(!h) return;
+    const rows=Object.values(state.players).filter(p=>p.gc).sort((a,b)=>b.gm[1]-a.gm[1]||b.gc-a.gc);
+    h.innerHTML = rows.length
+      ? '<div class="hofhd">HALL OF RECORDS · best lockout accuracy</div>'+rows.map((p,i)=>
+        '<div class="hofrow">'+(i<3?["🥇","🥈","🥉"][i]:"·")+' '+esc2((p.av?p.av+" ":"")+p.name)+' — '+["PINK","GARAGE","QUINN"][p.gm[0]]+' · '+p.gm[1]+'% · '+p.gc+' set'+(p.gc>1?"s":"")+'</div>').join("")
+      : '<div class="hofhd">HALL OF RECORDS · nobody has locked anything out yet</div>';
+  }
+  function gymOpen(){ $("gym").hidden=false; placeZone(); gT0=performance.now(); renderHof();
     if(!gTimer) gTimer=setInterval(()=>{ if($("gym").hidden){clearInterval(gTimer);gTimer=null;return;}
       $("gmark").style.left=window.gPosAt(performance.now())+"%"; },33); }
   function placeZone(){ const w=GZONE[gDiff]; gZoneL=Math.random()*(100-w);
@@ -731,9 +758,21 @@ window.addEventListener("load",()=>{
     if(!ME || ME.id===""){ $("gmsg").textContent="the weights respect nobody without an identity. say who you are first."; return; }
     const today=new Date().toISOString().slice(0,10);
     if(ok){
-      if(state.events.some(x=>x.id==="gym-"+today+"-"+ME.id)){ $("gmsg").textContent="muscles need 24h to recover. come back tomorrow."; return; }
-      mutate(st=>{ st.events.push({id:"gym-"+today+"-"+ME.id,p:ME.id,d:GREWARD[gDiff],x:"left the gym quietly",t:Date.now(),st:"live",h:1}); });
-      $("gmsg").textContent="✓ locked out. +"+GREWARD[gDiff]+" absorbed — the log never saw it.";
+      const mid=gZoneL+GZONE[gDiff]/2;
+      const acc=Math.max(1,Math.round(100*(1-Math.abs(gMark-mid)/(GZONE[gDiff]/2))));
+      const mine=state.players[ME.id];
+      const isRec=!mine.gm || acc>mine.gm[1];
+      const capped=state.events.some(x=>x.id==="gym-"+today+"-"+ME.id);
+      mutate(st=>{
+        const q=st.players[ME.id];
+        q.gc=(q.gc||0)+1;
+        if(!q.gm || acc>q.gm[1]) q.gm=[gDiff,acc];
+        if(!capped) st.events.push({id:"gym-"+today+"-"+ME.id,p:ME.id,d:GREWARD[gDiff],x:"left the gym quietly",t:Date.now(),st:"live",h:1});
+      });
+      renderHof();
+      $("gmsg").textContent = capped
+        ? "record night — "+acc+"% on the "+["PINK","GARAGE","QUINN"][gDiff]+" bar. but muscles need 24h for gains."
+        : "✓ locked out. +"+GREWARD[gDiff]+" absorbed"+(isRec?" — NEW RECORD: "+acc+"% centred":"")+" — the log never saw it.";
       ding(700);
     } else { $("gmsg").textContent="the bar folded you like a lawn chair."; ding(140); }
     placeZone();
