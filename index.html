@@ -39,6 +39,18 @@ h2{font-size:12.5px;letter-spacing:.14em;color:var(--dim);text-transform:upperca
 .gauge{text-align:center}
 .gaugewrap{display:inline-block;max-width:100%}
 .gaugewrap svg{max-width:100%;height:auto}
+.mebadge{margin-top:8px;font-size:12px;color:#8a93a6}
+.mebadge b{color:#f5b942}
+.mebadge button{background:none;border:none;color:#8a93a6;cursor:pointer;font-size:11px;text-decoration:underline;padding:0 0 0 6px}
+#idmask{position:fixed;inset:0;background:rgba(8,10,14,.88);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+#idmask[hidden]{display:none}
+.idcard{background:#151923;border:1px solid #222938;border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center}
+.idcard h2{margin:0 0 6px;font-size:20px}
+.idsub{color:#8a93a6;font-size:12.5px;line-height:1.5;margin:0 0 16px}
+#idlist{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+#idlist button{background:#1d2433;border:1px solid #2c3550;color:#e8ecf4;border-radius:10px;padding:11px;font-size:15px;cursor:pointer;font-weight:600}
+#idlist button:active{transform:scale(.98);border-color:#f5b942}
+#idobs{background:none;border:none;color:#8a93a6;font-size:12px;cursor:pointer;text-decoration:underline}
 .needle{transform-origin:150px 150px;transition:transform 1s cubic-bezier(.18,1.4,.4,1)}
 .needle.spiked{animation:wob .7s ease-out}
 @keyframes wob{0%,100%{transform:var(--rot)}20%{transform:var(--rot) translateY(-3px)}45%{transform:var(--rot) translateY(2px)}70%{transform:var(--rot) translateY(-1px)}}
@@ -112,7 +124,16 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
   <div class="sub">The Testosterone Index™ — 0% scientific rigour*, live-synced to everyone. Scale: −500 … +500.</div>
   <div class="sub fine">*rigour: none. methodology: vibes. incidents age out after 7 days — history is written in protein powder.</div>
   <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span><button id="syncbtn" title="Force refresh">⟳</button></div>
+  <div class="mebadge" id="mebadge" hidden></div>
 </header>
+<div id="idmask" hidden>
+  <div class="idcard">
+    <h2>Who are you?</h2>
+    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Your identity is required to approve big swings, and no one can spend your name for you.</p>
+    <div id="idlist"></div>
+    <button class="obs" id="idobs">Just watching (observer)</button>
+  </div>
+</div>
 
 <div class="cols">
   <div>
@@ -172,10 +193,39 @@ const MAX_SNAP = 3800;           // ntfy free tier treats >4096B bodies as attac
 const MAX_EVENTS = 60, MAX_PLAYERS = 32, NAME_MAX = 16, TEXT_MAX = 70;
 const APPROVAL_FLOOR = 15;       // |delta| >= this needs another member's blessing
 const WEEK = 7*24*3600*1000;
-const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || location.search.includes("standalone=1");
 
 let state = null;                // {rev,players,rules(legacy,always []),events}
 let viewing = "";
+
+/* ============ identity: asked once, remembered per device ============ */
+let ME=null; try{ ME=JSON.parse(localStorage.getItem("apexme")||"null"); }catch(_){}
+const isMe = id => ME && ME.id===id && ME.id!=="";
+function memberIds(){ return Object.keys(state?state.players:{}); }
+function renderMe(){
+  const bm=document.getElementById("mebadge");
+  if(ME && ME.id && state && state.players[ME.id]){
+    ME.name = state.players[ME.id].name;             // track renames
+    bm.hidden=false;
+    bm.innerHTML=`signed in as <b>${esc2(ME.name)}</b> · approvals bind to this name <button id="mewho">not you? change</button>`;
+    document.getElementById("mewho").onclick=()=>showIdMask();
+  } else if(ME && ME.id===""){
+    bm.hidden=false; bm.innerHTML=`browsing as <b>observer</b> — can log incidents, cannot witness <button id="mewho">be someone</button>`;
+    document.getElementById("mewho").onclick=()=>showIdMask();
+  } else bm.hidden=true;
+}
+function esc2(s){ const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
+function showIdMask(){
+  const mask=document.getElementById("idmask"); mask.hidden=false;
+  document.getElementById("idlist").innerHTML =
+    Object.values(state.players).map(p=>`<button data-me="${p.id}">${esc2(p.name)}</button>`).join("");
+}
+function setMe(id){
+  ME = id===""? {id:"",name:"observer"} : {id, name: state.players[id].name};
+  localStorage.setItem("apexme",JSON.stringify(ME));
+  document.getElementById("idmask").hidden=true;
+  renderMe(); maybeAutoBonus(); render();
+}
 let dirty = false, pubTimer = null, es = null, reconnectTimer = null;
 let streaming = false, sseRetry = null;
 
@@ -333,6 +383,9 @@ function bootstrap(){
       render(); setPill(true);
       if(aged){ state.rev++; publish(); }
       fateRoll();
+      // identity gate: ask once; re-ask if the saved identity no longer exists
+      if(!ME || (ME.id!=="" && !state.players[ME.id])) showIdMask();
+      else { maybeAutoBonus(); renderMe(); }
       connect();
     })
     .catch(()=>{ setPill(false,"offline — retrying"); scheduleRepoll(); connect(); });
@@ -404,8 +457,7 @@ function render(){
     const bar=p.score<0
       ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,5,500)/5}%"></i></div>`
       : `<div class="bar"><i style="width:${clamp(p.score,0,500)/5}%"></i></div>`;
-    const hb = STANDALONE && !p.hs ? `<button class="hbtn" data-hs="${p.id}">📱 +5</button>` : "";
-    return `<li class="${p.id===viewing?"sel":""}"><span class="rank">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${esc(p.name)}${p.id===viewing?" ◀":" tap"}</button>${hb}${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
+    return `<li class="${p.id===viewing?"sel":""}"><span class="rank">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${esc(p.name)}${p.id===viewing?" ◀":" tap"}${p.hs?" 📱":""}</button>${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
   }).join("") : `<div class="empty">nobody enrolled. the study is just you and your own baseline.</div>`;
 
   const s = viewing!==""? scoreOf(viewing):null;
@@ -427,34 +479,37 @@ function render(){
   const pend=state.events.filter(e=>e.st==="pending").sort((a,b)=>a.t-b.t);
   $("pending").innerHTML = pend.map(e=>{
     const p=state.players[e.p];
+    const ctl = !ME ? `<span class="pnote">sign in (top of page) to bear witness</span>`
+      : ME.id==="" ? `<span class="pnote">observers cannot witness</span>`
+      : ME.id===e.p ? `<span class="pnote">this is your own case — you need a different witness</span>`
+      : `<button data-ok="${e.id}">✓ approve as ${esc(ME.name)}</button> <button data-no="${e.id}" class="rej">✕ reject</button>`;
     return `<div class="prow"><div class="ph">
         <span class="pd ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span>
         for <span class="pwho">${esc(p?p.name:"???")}</span> — ${esc(e.x)}
+        ${e.by?`<i style="opacity:.55;font-size:11px"> · filed by ${esc(e.by)}</i>`:""}
         <span class="pnote">⚖ big swing — needs a witness before it counts</span></div>
-      <div class="pctl">
-        <select data-ap="${e.id}"><option value="">approve as… (not ${esc(p?p.name:"them")})</option>${players.filter(pl=>pl.id!==e.p).map(pl=>`<option value="${esc(pl.name)}">${esc(pl.name)}</option>`).join("")}</select>
-        <button data-ok="${e.id}">✓</button>
-        <button data-no="${e.id}" class="rej">✕</button>
-      </div></div>`;
+      <div class="pctl">${ctl}</div></div>`;
   }).join("");
 
   const evs=[...state.events].filter(isLive).sort((a,b)=>b.t-a.t).slice(0,20);
   $("feed").innerHTML = evs.length? evs.map(e=>{
     const p=state.players[e.p];
-    return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}${e.ap?` <span class="ap">⚖ ${esc(e.ap)}</span>`:""}<span class="age">${ago(e.t)}</span></li>`;
+    return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}${e.ap?` <span class="ap">⚖ ${esc(e.ap)}</span>`:""}${e.by?` <i style="opacity:.55;font-size:11px">· filed by ${esc(e.by)}</i>`:""}<span class="age">${ago(e.t)}</span></li>`;
   }).join("") : `<div class="empty">no incidents on record. suspiciously pure behaviour.</div>`;
 
   const hs=$("hs");
   if(STANDALONE){
-    const mine=players.filter(p=>!p.hs);
     hs.className="hs ok";
-    hs.innerHTML = mine.length
-      ? `<b>📱 Home-screen verified.</b> Tap the <b>📱 +5</b> chip next to anyone who hasn't claimed their install bonus yet. One shot per subject.`
-      : `<b>📱 Home-screen verified.</b> Every subject has claimed the install bonus. Peak adoption.`;
+    const mine = ME && ME.id && state.players[ME.id];
+    hs.innerHTML = (mine && mine.hs)
+      ? `<b>📱 Home-screen verified.</b> Your +5 install bonus is banked. One per member — your friends must install it themselves.`
+      : mine ? `<b>📱 Home-screen verified.</b> Your +5 is being banked right now.`
+      : `<b>📱 Home-screen verified.</b> The +5 install bonus is yours alone — it lands the moment you claim who you are. Nobody can hand it out on anyone's behalf.`;
   }else{
     hs.className="hs";
-    hs.innerHTML=`💡 Add this page to your <b>home screen</b> and every subject gets a one-time <b>+5</b> install bonus. (The app genuinely checks.)`;
+    hs.innerHTML=`💡 Add this page to your <b>home screen</b> — open it from there and <i>you yourself</i> get a one-time <b>+5</b> install bonus. (The app genuinely checks.)`;
   }
+  renderMe();
 }
 function logIncident(){
   if(!state) return;
@@ -464,19 +519,23 @@ function logIncident(){
   if(!pid || !state.players[pid]){ flashToast("tap a name on the board first"); return; }
   if(!d){ flashToast("set a testosterone delta"); return; }
   if(!x){ flashToast("no reason, no incident — write what they did"); return; }
+  const by = ME ? ME.name : "anonymous";
   const pending = Math.abs(d)>=APPROVAL_FLOOR;
-  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live"});
+  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live",by});
     st.events=st.events.slice(-MAX_EVENTS); });
   $("if-x").value="";
   ding(d>=0?520:140);
-  if(pending) flashToast(`±${Math.abs(d)} filed as pending — needs a witness`);
+  if(pending) flashToast(`±${Math.abs(d)} filed as pending — needs a witness who isn't ${state.players[pid].name}`);
 }
-function claimHs(pid){
-  if(!STANDALONE){ flashToast("only works when opened from the home screen"); return; }
-  mutate(st=>{ const p=st.players[pid];
-    if(p && !p.hs){ p.hs=true; st.events.push({id:uid(),p:pid,d:5,x:"📱 downloaded the app like a functional adult",t:Date.now(),st:"live",ap:"home-screen check"});
+function maybeAutoBonus(){
+  if(!STANDALONE || !state || !ME || !ME.id) return;
+  const p=state.players[ME.id];
+  if(!p || p.hs) return;
+  mutate(st=>{ const q=st.players[ME.id];
+    if(q && !q.hs){ q.hs=true;
+      st.events.push({id:uid(),p:ME.id,d:5,x:"📱 opened from the home screen — install bonus, self-claimed",t:Date.now(),st:"live",ap:"home-screen check"});
       st.events=st.events.slice(-MAX_EVENTS); } });
-  ding(700); flashToast("install bonus banked");
+  ding(700); flashToast("home-screen +5 banked — to you, and only you");
 }
 let ac=null;
 function ding(f){
@@ -498,8 +557,8 @@ window.addEventListener("load",()=>{
     if(!n || !state) return;
     if(Object.values(state.players).some(p=>p.name.toLowerCase()===n.toLowerCase())){flashToast(n+" is already enrolled");return;}
     const id=uid();
-    mutate(st=>{ const p={id,name:n,base:50,hs:STANDALONE}; st.players[id]=p;
-      if(STANDALONE) st.events.push({id:uid(),p:id,d:5,x:"📱 enrolled from the home screen (install bonus)",t:Date.now(),st:"live",ap:"home-screen check"}); });
+    mutate(st=>{ st.players[id]={id,name:n,base:50,hs:false};
+      st.events=st.events.slice(-MAX_EVENTS); });
     $("pname").value=""; viewing=id; render();
   };
   $("pname").addEventListener("keydown",e=>{if(e.key==="Enter")$("addp").click();});
@@ -514,20 +573,20 @@ window.addEventListener("load",()=>{
   $("lb").addEventListener("click",e=>{
     const pick=e.target.closest("[data-pick]");
     if(pick){ viewing=(viewing===pick.dataset.pick?"":pick.dataset.pick); render(); return; }
-    const hsb=e.target.closest("[data-hs]");
-    if(hsb){ claimHs(hsb.dataset.hs); }
   });
+  $("idlist").addEventListener("click",e=>{
+    const b=e.target.closest("[data-me]"); if(b) setMe(b.dataset.me);
+  });
+  $("idobs").onclick=()=>setMe("");
   $("pending").addEventListener("click",e=>{
     const b=e.target.closest("button"); if(!b) return;
-    const rowEl=b.closest(".prow"), sel=rowEl.querySelector("select");
+    if(!ME || ME.id===""){ flashToast("first say who you are"); return; }
+    const ev=state.events.find(x=>x.id===(b.dataset.ok||b.dataset.no));
+    if(!ev) return;
+    if(ME.id===ev.p){ flashToast("no self-approval — that's your own alibi"); return; }
     if(b.dataset.ok){
-      const who=sel.value;
-      if(!who){ flashToast("approve AS who? pick a witness"); return; }
-      const subj=state.events.find(x=>x.id===b.dataset.ok);
-      if(subj && state.players[subj.p] && state.players[subj.p].name===who){
-        flashToast("no self-approval — that's your own alibi"); return; }
-      mutate(st=>{ const ev=st.events.find(x=>x.id===b.dataset.ok);
-        if(ev){ ev.st="live"; ev.ap=who; } });
+      mutate(st=>{ const v=st.events.find(x=>x.id===b.dataset.ok);
+        if(v && v.st==="pending"){ v.st="live"; v.ap=ME.name; } });
       ding(520);
     }else if(b.dataset.no){
       mutate(st=>{ st.events=st.events.filter(x=>x.id!==b.dataset.no); });
