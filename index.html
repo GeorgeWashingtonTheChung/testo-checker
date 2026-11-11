@@ -432,7 +432,7 @@ function render(){
         for <span class="pwho">${esc(p?p.name:"???")}</span> — ${esc(e.x)}
         <span class="pnote">⚖ big swing — needs a witness before it counts</span></div>
       <div class="pctl">
-        <select data-ap="${e.id}"><option value="">approve as…</option>${players.map(pl=>`<option value="${esc(pl.name)}">${esc(pl.name)}</option>`).join("")}</select>
+        <select data-ap="${e.id}"><option value="">approve as… (not ${esc(p?p.name:"them")})</option>${players.filter(pl=>pl.id!==e.p).map(pl=>`<option value="${esc(pl.name)}">${esc(pl.name)}</option>`).join("")}</select>
         <button data-ok="${e.id}">✓</button>
         <button data-no="${e.id}" class="rej">✕</button>
       </div></div>`;
@@ -463,8 +463,9 @@ function logIncident(){
   const pid=$("if-p").value;
   if(!pid || !state.players[pid]){ flashToast("tap a name on the board first"); return; }
   if(!d){ flashToast("set a testosterone delta"); return; }
+  if(!x){ flashToast("no reason, no incident — write what they did"); return; }
   const pending = Math.abs(d)>=APPROVAL_FLOOR;
-  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x:x||"undisclosed testosterone event",t:Date.now(),st:pending?"pending":"live"});
+  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live"});
     st.events=st.events.slice(-MAX_EVENTS); });
   $("if-x").value="";
   ding(d>=0?520:140);
@@ -522,6 +523,9 @@ window.addEventListener("load",()=>{
     if(b.dataset.ok){
       const who=sel.value;
       if(!who){ flashToast("approve AS who? pick a witness"); return; }
+      const subj=state.events.find(x=>x.id===b.dataset.ok);
+      if(subj && state.players[subj.p] && state.players[subj.p].name===who){
+        flashToast("no self-approval — that's your own alibi"); return; }
       mutate(st=>{ const ev=st.events.find(x=>x.id===b.dataset.ok);
         if(ev){ ev.st="live"; ev.ap=who; } });
       ding(520);
