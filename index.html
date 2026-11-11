@@ -279,15 +279,27 @@ function repoll(){
   }
 }
 setInterval(repoll,25000);
+document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ repoll(); if(es&&es.readyState===2) connect(); } });
 function bootstrap(){
-  // fetch every cached snapshot, apply the newest (server keeps latest ~256 msgs)
+  // replay every cached snapshot oldest→newest, union-merging so no single
+  // message (or trimmed history) can wipe players/rules
   fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc")
     .then(r=>r.ok?r.text():Promise.reject(0))
     .then(txt=>{
       const lines=txt.split("\n").filter(Boolean);
-      let applied=null;
-      for(const l of lines){ try{const m=JSON.parse(l); if(m.message){const s=JSON.parse(m.message); if(s && s.rev && (!applied||s.rev>=applied.rev) ) applied=s;}}catch(_){}}
-      if(applied && (!state||applied.rev>=state.rev)){ state=applied; render(); setPill(true); }
+      let acc=null;
+      for(const l of lines){
+        let s=null; try{ s=JSON.parse(JSON.parse(l).message); }catch(_){ continue; }
+        if(!s || typeof s.rev!=="number") continue;
+        if(!acc){ acc=s; continue; }
+        const players={...acc.players,...s.players};
+        const rmap=new Map(acc.rules.map(r=>[r.id,r]));
+        for(const r of s.rules) rmap.set(r.id,r);
+        const emap=new Map(acc.events.map(e=>[e.id,e]));
+        for(const e of s.events) emap.set(e.id,e);
+        acc={rev:Math.max(acc.rev,s.rev),players,rules:[...rmap.values()],events:[...emap.values()]};
+      }
+      if(acc && acc.rev>=(state?state.rev:0)){ state=acc; render(); setPill(true); }
       else if(!state){ state=seedState(); render(); publish(); }
       connect();
     })
