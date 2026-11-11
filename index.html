@@ -106,8 +106,8 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:26px}
         <div class="who" id="who">add a player below to begin the study</div>
       </div>
       <div class="bigapply">
-        <button id="quickplus" class="ghost">+10 Bro Points</button>
-        <button id="quickminus" class="ghost">−10 Soy Points</button>
+        <button id="quickplus" class="ghost">+10 Testosterone</button>
+        <button id="quickminus" class="ghost">−10 Testosterone</button>
       </div>
     </div>
 
@@ -163,19 +163,7 @@ let streaming = false, sseRetry = null;
 const uid = () => Math.random().toString(36).slice(2,8);
 
 function seedState(){
-  const r = uid();
-  return {rev:1, players:{}, rules:[
-    {id:"s1",text:"opened a jar for someone unprompted",delta:10},
-    {id:"s2",text:"mowed the lawn before being asked",delta:8},
-    {id:"s3",text:"sat with hands in lap like a toddler",delta:-9},
-    {id:"s4",text:"cried at a dog movie (alone, lights off)",delta:-14},
-    {id:"s5",text:"grunted when sitting down",delta:6},
-    {id:"s6",text:"replied 'k' to a paragraph",delta:-6},
-    {id:"s7",text:"chose the 97kg weight and made it look light",delta:12},
-    {id:"s8",text:"put the toilet seat down AND wiped the rim",delta:15},
-    {id:"s9",text:"flinched at a pop of bubble wrap",delta:-11},
-    {id:"s10",text:"says 'we need to talk' about the thermostat",delta:-8},
-  ],events:[]};
+  return {rev:1, players:{}, rules:[], events:[]};
 }
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function scoreOf(pid){
@@ -433,8 +421,8 @@ window.addEventListener("load",()=>{
   };
   $("rtext").addEventListener("keydown",e=>{if(e.key==="Enter")$("addr").click();});
   $("viewer").onchange=()=>{viewing=$("viewer").value; render();};
-  $("quickplus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q+",d:10,x:"generic bro points",t:Date.now()})); ding(520); };
-  $("quickminus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q-",d:-10,x:"unspecified soy incident",t:Date.now()})); ding(140); };
+  $("quickplus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q+",d:10,x:"generic testosterone",t:Date.now()})); ding(520); };
+  $("quickminus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q-",d:-10,x:"unspecified testosterone loss",t:Date.now()})); ding(140); };
   $("rules").addEventListener("click",e=>{
     const b=e.target.closest("button"); if(!b) return;
     if(b.dataset.del){ mutate(st=>{ st.rules=st.rules.filter(r=>r.id!==b.dataset.del); }); return; }
