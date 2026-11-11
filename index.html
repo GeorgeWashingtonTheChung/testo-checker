@@ -139,7 +139,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
   <div class="sub fine">*rigour: none. methodology: vibes. incidents age out after 7 days — history is written in protein powder.</div>
   <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span><button id="syncbtn" title="Force refresh">⟳</button></div>
   <span id="unlockbtns"></span>
-  <canvas id="icontile" width="46" height="46" style="vertical-align:middle;margin-left:8px;border-radius:10px" title="your app icon right now"></canvas>
+  <canvas id="icontile" width="64" height="64" style="vertical-align:middle;margin-left:8px;border-radius:12px;width:52px;height:52px" title="your app icon right now"></canvas>
   <div class="mebadge" id="mebadge" hidden></div>
 </header>
 <div id="idmask" hidden>
@@ -774,10 +774,10 @@ window.addEventListener("load",()=>{
     ctx.beginPath(); ctx.moveTo(cx,cy);
     ctx.lineTo(cx+Math.sin(ang)*r*0.82, cy-Math.cos(ang)*r*0.82); ctx.stroke();
     ctx.fillStyle="#f5b942"; ctx.textAlign="center";
-    ctx.font="700 "+(S*0.26)+"px monospace"; ctx.fillText(String(score),cx,S*0.94);
-    ctx.font=(S*0.11)+"px monospace";
-    ctx.fillStyle = d24>0?"#6bcf6f" : d24<0?"#e5484d" : "#5b6375";
-    ctx.fillText(d24?(d24>0?"+":"")+d24+" /24h":"quiet /24h", cx, S*0.30);
+    ctx.font="700 "+(S*0.25)+"px monospace"; ctx.fillText(String(score),cx,S*0.97);
+    ctx.font="700 "+Math.max(8,S*0.14)+"px monospace";
+    ctx.fillStyle = d24>0?"#6bcf6f" : d24<0?"#e5484d" : "#8a93a6";
+    ctx.fillText(d24?(d24>0?"▲ +":"▼ ")+d24+" /24h":"— /24h", cx, S*0.16);
   }
   window.updateIcon=function(){
     if(!state) return;
@@ -785,7 +785,7 @@ window.addEventListener("load",()=>{
     if(!pid) return;
     const p=state.players[pid], sc=scoreOf(pid);
     const day=state.events.filter(e=>isLive(e)&&e.p===pid&&e.t>Date.now()-864e5).reduce((a,e)=>a+e.d,0);
-    const t=$("icontile"); drawIcon(t.getContext("2d"),46,sc,day);
+    const t=$("icontile"); drawIcon(t.getContext("2d"),64,sc,day);
     const big=document.createElement("canvas"); big.width=180; big.height=180;
     drawIcon(big.getContext("2d"),180,sc,day);
     const url=big.toDataURL("image/png");
