@@ -270,11 +270,24 @@ function connect(){
     clearTimeout(sseRetry); sseRetry=setTimeout(()=>{ if(es && es.readyState===2) connect(); },5000);
   };
 }
-/* fallback: poll the cached snapshot so a killed stream still converges within ~25s */
+/* fallback: poll the cached snapshots and adopt the newest, so a killed
+   stream still converges within ~25s. ntfy returns ALL cached msgs, newest-first. */
+function pickNewest(text){
+  let best=null;
+  for(const l of text.split("\n")){
+    if(!l.trim()) continue;
+    try{
+      const s=JSON.parse(JSON.parse(l).message);
+      if(s && typeof s.rev==="number" && (!best || s.rev>best.rev)) best=s;
+    }catch(_){}
+  }
+  return best;
+}
 function repoll(){
   if(!dirty){
     fetch(BASE+TOPIC+"/json?poll=1").then(r=>r.ok?r.text():Promise.reject(0)).then(t=>{
-      try{ const m=JSON.parse(t); if(m.message){const s=JSON.parse(m.message); if(s && s.rev){ if(!streaming) setPill(true,"synced (polling)"); ingest(s); } } }catch(_){}
+      const s=pickNewest(t);
+      if(s){ if(!streaming) setPill(true,"synced (polling)"); ingest(s); }
     }).catch(()=>setPill(false,"offline — retrying"));
   }
 }
