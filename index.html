@@ -115,15 +115,31 @@ button:active{transform:scale(.97)}
 footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 #toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(90px);background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:11px 18px;border-radius:99px;font-size:13px;transition:transform .35s ease;z-index:5;max-width:90vw}
 #toast.show{transform:translateX(-50%) translateY(0)}
+#unlockbtns button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:#141926;color:var(--fg);font-size:14px;cursor:pointer;margin-left:6px}
+.gdiff{display:flex;gap:8px;margin-bottom:14px}
+.gdiff button{flex:1;padding:8px 4px;font-size:11px;border-radius:8px;border:1px solid var(--line);background:#141926;color:var(--mut);cursor:pointer;font-family:var(--mono)}
+.gdiff button small{display:block;color:var(--mut)}
+.gdiff .gd-on{border-color:var(--gold);color:var(--gold)}.gdiff .gd-on small{color:var(--gold)}
+.gtrack{position:relative;height:44px;background:#0b0d12;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:14px 0}
+.gzone{position:absolute;top:0;bottom:0;background:rgba(107,207,111,.25);border-left:1px solid #6bcf6f;border-right:1px solid #6bcf6f}
+.gmark{position:absolute;top:0;bottom:0;width:5px;background:var(--gold);border-radius:2px}
+.gstop{width:100%;padding:13px;font-size:13px;letter-spacing:.15em;border-radius:10px;border:1px solid var(--gold);color:var(--gold);background:rgba(255,204,0,.08);cursor:pointer;font-family:var(--disp)}
+.themes{display:flex;flex-wrap:wrap;gap:8px}
+.themes button{padding:8px 10px;font-size:11px;border-radius:8px;border:1px solid var(--line);background:#141926;color:var(--mut);cursor:pointer;font-family:var(--mono)}
+.themes .th-on{border-color:var(--gold)}
+#avpick button{font-size:22px;background:#141926;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:4px 2px;cursor:pointer}
+.rnbtn{background:none;border:none;color:#5b6375;cursor:pointer;font-size:12px;padding:0 0 0 6px}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <h1>◤◢ APEX <b>T</b></h1>
+  <h1 id="logo">◤◢ APEX <b id="t">T</b></h1>
   <div class="sub">The Testosterone Index™ — 0% scientific rigour*, live-synced to everyone. Scale: −500 … +500.</div>
   <div class="sub fine">*rigour: none. methodology: vibes. incidents age out after 7 days — history is written in protein powder.</div>
   <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span><button id="syncbtn" title="Force refresh">⟳</button></div>
+  <span id="unlockbtns"></span>
+  <canvas id="icontile" width="46" height="46" style="vertical-align:middle;margin-left:8px;border-radius:10px" title="your app icon right now"></canvas>
   <div class="mebadge" id="mebadge" hidden></div>
 </header>
 <div id="idmask" hidden>
@@ -184,6 +200,38 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 </div>
 <div id="toast"></div>
 
+<div id="gym" hidden>
+  <div class="idcard">
+    <h2>🏋 THE BENCH</h2>
+    <div class="idsub">stop the bar inside the green. heavier bar, thinner spotter.</div>
+    <div class="gdiff"><button data-gd="0" class="gd-on">1 · pink dumbbells <small>+5</small></button><button data-gd="1">2 · garage set <small>+7</small></button><button data-gd="2">3 · QUINN <small>+10</small></button></div>
+    <div class="gtrack"><div class="gzone" id="gzone"></div><div class="gmark" id="gmark"></div></div>
+    <button class="gstop" id="gstop">STOP THE BAR</button>
+    <div class="idsub" id="gmsg" style="margin-top:12px">gains do not appear in the incident log. muscles do not lie.</div>
+    <button class="obs" id="gclose" style="position:absolute;top:12px;right:12px;width:auto;padding:4px 10px">✕</button>
+  </div>
+</div>
+<div id="prefs" hidden>
+  <div class="idcard">
+    <h2>⚙ CUSTOMISATIONS</h2>
+    <div class="idsub">accent of power:</div>
+    <div class="themes"><button data-th="" class="th-on">default gold</button><button data-th="#4ade80" style="color:#4ade80">steroid green</button><button data-th="#60a5fa" style="color:#60a5fa">blue pill</button><button data-th="#f472b6" style="color:#f472b6">emotional support pink</button><button data-th="#f87171" style="color:#f87171">rage red</button></div>
+    <div class="idsub" id="avsec" hidden>avatar of the mogger (shared with everyone):<br><span id="avpick"></span></div>
+    <div class="idsub" id="phint" style="margin-top:14px">the podium remembers 1–2–3–1.</div>
+    <button class="obs" id="pclose" style="position:absolute;top:12px;right:12px;width:auto;padding:4px 10px">✕</button>
+  </div>
+</div>
+<div id="rnmask" hidden>
+  <div class="idcard">
+    <h2>✎ rename <span id="rnwho"></span></h2>
+    <div class="idsub">requires a one-time authorisation code issued by the board. the code burns after use.</div>
+    <input id="rn-name" placeholder="new name" maxlength="14" style="width:100%;background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:10px;color:#fff;margin:8px 0">
+    <input id="rn-pw" placeholder="authorisation code" maxlength="40" style="width:100%;background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:10px;color:#fff;margin:8px 0">
+    <button class="obs" id="rn-go" style="color:var(--gold);border-color:rgba(255,204,0,.4);width:100%;padding:12px">apply rename</button>
+    <div id="rn-out" class="idsub" style="margin-top:10px"></div>
+    <button class="obs" id="rn-x" style="margin-top:12px">cancel</button>
+  </div>
+</div>
 <script>
 "use strict";
 /* ============ sync transport: ntfy.sh ============ */
@@ -457,7 +505,7 @@ function render(){
     const bar=p.score<0
       ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,5,500)/5}%"></i></div>`
       : `<div class="bar"><i style="width:${clamp(p.score,0,500)/5}%"></i></div>`;
-    return `<li class="${p.id===viewing?"sel":""}"><span class="rank">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${esc(p.name)}${p.id===viewing?" ◀":" tap"}${p.hs?" 📱":""}</button>${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
+    return `<li class="${p.id===viewing?"sel":""}"><span class="rank" data-rk="${i}">${["🥇","🥈","🥉"][i]||i+1}</span><button class="pname" data-pick="${p.id}">${p.av?esc(p.av)+" ":""}${esc(p.name)}${p.id===viewing?" ◀":" tap"}${p.hs?" 📱":""}</button>${p.id===viewing?`<button class="rnbtn" data-rn="${p.id}">✎</button>`:""}${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
   }).join("") : `<div class="empty">nobody enrolled. the study is just you and your own baseline.</div>`;
 
   const s = viewing!==""? scoreOf(viewing):null;
@@ -491,7 +539,7 @@ function render(){
       <div class="pctl">${ctl}</div></div>`;
   }).join("");
 
-  const evs=[...state.events].filter(isLive).sort((a,b)=>b.t-a.t).slice(0,20);
+  const evs=[...state.events].filter(e=>isLive(e) && !e.h).sort((a,b)=>b.t-a.t).slice(0,30);
   $("feed").innerHTML = evs.length? evs.map(e=>{
     const p=state.players[e.p];
     return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}${e.ap?` <span class="ap">⚖ ${esc(e.ap)}</span>`:""}${e.by?` <i style="opacity:.55;font-size:11px">· filed by ${esc(e.by)}</i>`:""}<span class="age">${ago(e.t)}</span></li>`;
@@ -510,6 +558,7 @@ function render(){
     hs.innerHTML=`💡 Add this page to your <b>home screen</b> — open it from there and <i>you yourself</i> get a one-time <b>+5</b> install bonus. (The app genuinely checks.)`;
   }
   renderMe();
+  try{ updateIcon(); }catch(_){}
 }
 function logIncident(){
   if(!state) return;
@@ -593,7 +642,162 @@ window.addEventListener("load",()=>{
       flashToast("proposal shot down");
     }
   });
+
+  /* ===== v5: rotating-code renames, live icon, hidden secrets ===== */
+  const shaHex=s=>crypto.subtle.digest("SHA-256",new TextEncoder().encode(s))
+    .then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""));
+  const pwHash=async s=>(await shaHex(s)).slice(0,32);
+
+  // --- rename (password rotates every use) ---
+  let RN=null;
+  window.openRename=pid=>{ RN=pid;
+    $("rnwho").textContent="· "+state.players[pid].name;
+    $("rn-out").textContent=""; $("rn-name").value=""; $("rn-pw").value="";
+    $("rnmask").hidden=false; };
+  $("rn-x").onclick=()=>$("rnmask").hidden=true;
+  $("rn-go").onclick=async()=>{
+    const pw=$("rn-pw").value.trim();
+    if(!state.pw){ $("rn-out").textContent="no authorisation codes issued yet"; return; }
+    if(!pw){ $("rn-out").textContent="code required"; return; }
+    if(await pwHash(pw)!==state.pw){ $("rn-out").textContent="✕ wrong code — or it was already burned"; ding(140); return; }
+    const n=$("rn-name").value.trim().toUpperCase().slice(0,NAME_MAX)||state.players[RN].name;
+    if(Object.values(state.players).some(q=>q.id!==RN && q.name===n)){ $("rn-out").textContent="✕ "+n+" already exists on the board"; return; }
+    const nextPw=(await shaHex(pw+"|apex-rot")).slice(0,10).toUpperCase();
+    const newHash=await pwHash(nextPw);
+    const pid=RN;
+    mutate(st=>{ st.players[pid].name=n; st.pw=newHash; });
+    if(ME && ME.id===pid){ ME.name=n; localStorage.setItem("apexme",JSON.stringify(ME)); renderMe(); }
+    $("rn-out").innerHTML="renamed ✓ &nbsp;next one-time code: <b style='color:var(--gold);letter-spacing:.1em'>"+nextPw+"</b><br>whoever renames next needs this code. it burns on use.";
+    ding(520);
+  };
+
+  // --- unlocks / secret sequences (device-local, silent) ---
+  let U={}; try{ U=JSON.parse(localStorage.getItem("apexu")||"{}"); }catch(_){}
+  const saveU=()=>localStorage.setItem("apexu",JSON.stringify(U));
+  let tapLog=[];
+  function watch(k,pat,ms,fn){ const now=Date.now();
+    tapLog.push({k,t:now}); tapLog=tapLog.filter(x=>now-x.t<ms);
+    if(tapLog.map(x=>x.k).join(",").endsWith(pat.join(","))){ tapLog=[]; fn(); } }
+  function showUnlocks(){
+    const box=$("unlockbtns"); box.innerHTML="";
+    if(U.theme) box.insertAdjacentHTML("beforeend",'<button id="bthm">⚙</button>');
+    if(U.gym) box.insertAdjacentHTML("beforeend",'<button id="bgym">🏋</button>');
+    if(U.theme) $("bthm").onclick=()=>{$("prefs").hidden=false; renderAvatars();};
+    if(U.gym) $("bgym").onclick=gymOpen;
+    $("phint").hidden = !(U.gym && !U.av);
+    $("avsec").hidden = !U.av;
+  }
+  function unlock(k,msg){ if(U[k]) return; U[k]=true; saveU(); showUnlocks(); flashToast(msg); ding(700); }
+  $("logo").onclick=()=>watch("g",["g","g","g"],2500,()=>unlock("theme","something unlocked. the ⚙ hums faintly. the ⟳ seems to be hinting at something."));
+  $("syncbtn").addEventListener("click",()=>watch("s",["s","s","s","s","s"],4500,()=>unlock("gym","a 🏋 appeared. muscles detected. the podium remembers 1–2–3–1.")));
+
+  // --- prefs: theme + avatars ---
+  const EMOS=["🦍","🐐","🔱","🦁","💪","🗿","🦈","🍷","🧃"];
+  const savedTheme=localStorage.getItem("apexth");
+  if(savedTheme) document.documentElement.style.setProperty("--gold",savedTheme);
+  $("prefs").addEventListener("click",e=>{
+    const th=e.target.closest("[data-th]");
+    if(th){ document.querySelectorAll(".themes button").forEach(b=>b.classList.toggle("th-on",b===th));
+      const c=th.dataset.th;
+      if(c){ document.documentElement.style.setProperty("--gold",c); localStorage.setItem("apexth",c); }
+      else { document.documentElement.style.removeProperty("--gold"); localStorage.removeItem("apexth"); }
+      return; }
+    const av=e.target.closest("[data-av]");
+    if(av && ME && ME.id!==""){
+      const pid=av.dataset.av, cur=state.players[pid]?state.players[pid].av:null;
+      mutate(st=>{ st.players[pid].av = EMOS[(EMOS.indexOf(cur)+1)%EMOS.length]; });
+    }
+  });
+  function renderAvatars(){
+    if(!U.av || !state){ $("avsec").hidden=true; return; }
+    $("avsec").hidden=false;
+    $("avpick").innerHTML=Object.values(state.players).map(p=>
+      `<button data-av="${p.id}" title="cycle avatar">${p.av||"▫"} ${esc(p.name)}</button>`).join("");
+  }
+  $("pclose").onclick=()=>$("prefs").hidden=true;
+
+  // --- the bench (hidden minigame, silent gains, one set per member per day) ---
+  const GZONE=[30,18,10],GREWARD=[5,7,10],GSPEED=[0.045,0.075,0.115];
+  let gDiff=0,gZoneL=0,gMark=0,gDir=1,gRaf=null;
+  function gymOpen(){ $("gym").hidden=false; placeZone(); if(!gRaf) gStep(performance.now()); }
+  function placeZone(){ const w=GZONE[gDiff]; gZoneL=Math.random()*(100-w);
+    $("gzone").style.left=gZoneL+"%"; $("gzone").style.width=w+"%"; }
+  let gLast=0;
+  function gStep(t){ const dt=t-(gLast||t); gLast=t;
+    gMark+=gDir*GSPEED[gDiff]*dt;
+    if(gMark>97){gMark=97;gDir=-1;} if(gMark<0){gMark=0;gDir=1;}
+    $("gmark").style.left=gMark+"%";
+    if(!$("gym").hidden) gRaf=requestAnimationFrame(gStep); else gRaf=null; }
+  $("gstop").onclick=()=>{
+    const ok=gMark>=gZoneL && gMark<=gZoneL+GZONE[gDiff];
+    if(!ME || ME.id===""){ $("gmsg").textContent="the weights respect nobody without an identity. say who you are first."; return; }
+    const today=new Date().toISOString().slice(0,10);
+    if(ok){
+      if(state.events.some(x=>x.id==="gym-"+today+"-"+ME.id)){ $("gmsg").textContent="muscles need 24h to recover. come back tomorrow."; return; }
+      mutate(st=>{ st.events.push({id:"gym-"+today+"-"+ME.id,p:ME.id,d:GREWARD[gDiff],x:"left the gym quietly",t:Date.now(),st:"live",h:1}); });
+      $("gmsg").textContent="✓ locked out. +"+GREWARD[gDiff]+" absorbed — the log never saw it.";
+      ding(700);
+    } else { $("gmsg").textContent="the bar folded you like a lawn chair."; ding(140); }
+    placeZone();
+  };
+  $("gym").querySelector(".gdiff").addEventListener("click",e=>{
+    const b=e.target.closest("[data-gd]"); if(!b) return;
+    gDiff=Number(b.dataset.gd);
+    document.querySelectorAll(".gdiff button").forEach(x=>x.classList.toggle("gd-on",x===b));
+    placeZone();
+  });
+  $("gclose").onclick=()=>$("gym").hidden=true;
+
+  // --- rename + podium-secret click routing ---
+  $("lb").addEventListener("click",e=>{
+    const rn=e.target.closest("[data-rn]");
+    if(rn){ openRename(rn.dataset.rn); return; }
+    const rk=e.target.closest("[data-rk]");
+    if(rk) watch("r"+rk.dataset.rk,["r0","r1","r2","r0"],6000,()=>unlock("av","the podium yields its secret. avatars now live inside ⚙."));
+  });
+
+  if("serviceWorker" in navigator){
+    try{ navigator.serviceWorker.register("sw.js"); }catch(_){}
+  }
+
+  showUnlocks();
+  // --- live app icon: your score on the gauge, 24h net underneath ---
+  function drawIcon(ctx,S,score,d24){
+    ctx.fillStyle="#0d0f14"; ctx.fillRect(0,0,S,S);
+    const cx=S/2, cy=S*0.62, r=S*0.42;
+    for(let i=0;i<=60;i++){
+      const a=Math.PI-(i/60)*Math.PI;
+      const col=i<20?"#e5484d":(i<40?"#f5b942":"#6bcf6f");
+      ctx.fillStyle=col;
+      ctx.beginPath(); ctx.arc(cx+Math.cos(a)*r, cy-Math.sin(a)*r, S*0.035, 0, 7); ctx.fill();
+    }
+    const ang=(clamp(score,-500,500)/500)*(Math.PI/2);
+    ctx.strokeStyle="#f2f5fa"; ctx.lineWidth=Math.max(2,S*0.035); ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+Math.sin(ang)*r*0.82, cy-Math.cos(ang)*r*0.82); ctx.stroke();
+    ctx.fillStyle="#f5b942"; ctx.textAlign="center";
+    ctx.font="700 "+(S*0.26)+"px monospace"; ctx.fillText(String(score),cx,S*0.94);
+    ctx.font=(S*0.11)+"px monospace";
+    ctx.fillStyle = d24>0?"#6bcf6f" : d24<0?"#e5484d" : "#5b6375";
+    ctx.fillText(d24?(d24>0?"+":"")+d24+" /24h":"quiet /24h", cx, S*0.30);
+  }
+  window.updateIcon=function(){
+    if(!state) return;
+    const pid = (viewing && state.players[viewing]) ? viewing : (ME&&ME.id&&state.players[ME.id]?ME.id:Object.keys(state.players)[0]);
+    if(!pid) return;
+    const p=state.players[pid], sc=scoreOf(pid);
+    const day=state.events.filter(e=>isLive(e)&&e.p===pid&&e.t>Date.now()-864e5).reduce((a,e)=>a+e.d,0);
+    const t=$("icontile"); drawIcon(t.getContext("2d"),46,sc,day);
+    const big=document.createElement("canvas"); big.width=180; big.height=180;
+    drawIcon(big.getContext("2d"),180,sc,day);
+    const url=big.toDataURL("image/png");
+    let fav=document.querySelector("link[rel=icon]");
+    if(!fav){ fav=document.createElement("link"); fav.rel="icon"; document.head.appendChild(fav); }
+    fav.href=url;
+    if(navigator.setAppBadge){ try{ navigator.setAppBadge((sc>0?"+":"")+sc); }catch(_){}}
+  };
 });
+
 </script>
 </body>
 </html>
