@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TESTOSTERONE CHECKER™ — scientifically rigorous*</title>
+<!-- Free multi-user joke T-tracker. State = JSON snapshots published to ntfy.sh topic;
+     realtime via EventSource; late joiners fetch latest cached snapshot (?poll=1). -->
+<style>
+:root{--bg:#0d0f14;--card:#161a23;--card2:#1d2330;--ink:#e8ecf4;--dim:#8a93a6;--gold:#f5b942;--red:#ff4d5e;--green:#39d98a;--line:#2a3142;--mono:ui-monospace,'SF Mono',Menlo,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;padding:24px 16px 80px}
+.wrap{max-width:980px;margin:0 auto}
+header{text-align:center;margin-bottom:22px}
+h1{font-size:clamp(22px,4.5vw,34px);letter-spacing:.06em}
+h1 b{color:var(--gold)}
+.sub{color:var(--dim);font-size:13px;margin-top:4px}
+.syncpill{display:inline-block;margin-top:8px;font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.syncpill i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:1px}
+.syncpill.off i{background:var(--red)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.cols{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{font-size:13px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:12px}
+/* gauge */
+.gauge{position:relative;text-align:center}
+.gaugewrap{position:relative;display:inline-block}
+.needle{transform-origin:150px 150px;transition:transform 1s cubic-bezier(.18,1.4,.4,1)}
+.needle.spiked{animation:wob .7s ease-out}
+@keyframes wob{0%,100%{margin-top:0}20%{transform:rotate(var(--rot)) translateY(-3px)}45%{transform:rotate(var(--rot)) translateY(2px)}70%{transform:rotate(var(--rot)) translateY(-1px)}}
+.score-line{text-align:center;margin-top:-26px}
+.score{font-family:var(--mono);font-size:52px;font-weight:700}
+.score.neg{color:var(--red)}
+.tier{font-size:15px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+.tier.neg{color:var(--red)}
+.who{color:var(--dim);font-size:13px;margin-top:2px}
+select,input[type=text]{background:var(--card2);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-size:14px;width:100%}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+button{background:var(--gold);color:#151006;border:0;border-radius:8px;padding:9px 12px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+button.ghost{background:var(--card2);color:var(--ink);border:1px solid var(--line)}
+button:active{transform:scale(.97)}
+/* leaderboard */
+.lb{list-style:none}
+.lb li{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);font-size:14px}
+.lb li:last-child{border-bottom:0}
+.rank{width:26px;color:var(--dim);font-family:var(--mono)}
+.pname{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{width:120px;height:8px;background:var(--card2);border-radius:99px;overflow:hidden;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--gold),#ffd97a);border-radius:99px;transition:width .8s ease}
+.bar i.neg{background:var(--red);left:auto;right:0}
+.pts{font-family:var(--mono);font-weight:700;width:52px;text-align:right}
+.pts.neg{color:var(--red)}
+.zero{width:48px;height:24px;border-radius:12px;border:2px solid var(--red);display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--red);font-weight:700}
+.zero.bounce{animation:zb .6s ease}
+@keyframes zb{0%,100%{transform:translateY(0)}40%{transform:translateY(14px)}}
+/* rules */
+.rule{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.delta{font-family:var(--mono);font-weight:800;font-size:15px;min-width:52px}
+.delta.up{color:var(--green)}.delta.down{color:var(--red)}
+.rtext{flex:1;font-size:13.5px}
+.rule select{width:auto;flex:0 0 130px;padding:6px 8px;font-size:12.5px}
+.rule button{padding:6px 10px;font-size:12px}
+.rule .x{background:none;color:var(--dim);border:0;font-size:16px;padding:0 4px;flex:0 0 auto}
+.addrule{display:flex;gap:8px;margin-top:4px}
+.addrule input[type=text]{flex:3}
+.addrule .stepper{display:flex;align-items:center;gap:4px;flex:1}
+.stepper button{padding:6px 9px;background:var(--card2);color:var(--ink);border:1px solid var(--line)}
+.stepper .val{font-family:var(--mono);font-weight:800;min-width:44px;text-align:center;font-size:15px}
+.val.up{color:var(--green)}.val.down{color:var(--red)}
+/* feed */
+.feed{list-style:none;font-size:13px;max-height:240px;overflow-y:auto}
+.feed li{padding:7px 4px;border-bottom:1px solid var(--line);color:var(--dim)}
+.feed li b{color:var(--ink)}
+.feed li .d{font-family:var(--mono);font-weight:700}
+.feed li .d.up{color:var(--green)}.feed li .d.down{color:var(--red)}
+.empty{color:var(--dim);font-size:13px;text-align:center;padding:14px 0}
+footer{text-align:center;color:var(--dim);font-size:11px;margin-top:26px}
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--card2);border:1px solid var(--line);color:var(--ink);padding:10px 18px;border-radius:99px;font-size:13px;transition:transform .35s ease;z-index:5;max-width:90vw}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.bigapply{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.bigapply button{font-size:12.5px;padding:10px}
+.small{font-size:11px;color:var(--dim);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>⬤ TESTOSTERONE <b>CHECKER™</b></h1>
+  <div class="sub">The only app that measures your T with 0% scientific rigour*. Live-synced to everyone.</div>
+  <div class="sub" style="font-size:11px">*rigour: none. methodology: vibes.</div>
+  <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span></div>
+</header>
+
+<div class="cols">
+  <div>
+    <div class="card gauge">
+      <h2>Current Reading</h2>
+      <div class="row" style="margin-bottom:10px">
+        <select id="viewer"><option value="">— pick a player —</option></select>
+      </div>
+      <div class="gaugewrap" id="gaugewrap"></div>
+      <div class="score-line">
+        <div class="score" id="score">--</div>
+        <div class="tier" id="tier">no subject</div>
+        <div class="who" id="who">add a player below to begin the study</div>
+      </div>
+      <div class="bigapply">
+        <button id="quickplus" class="ghost">+10 Bro Points</button>
+        <button id="quickminus" class="ghost">−10 Soy Points</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Subject Pool <span style="float:right;font-weight:400" id="pcount"></span></h2>
+      <div class="row">
+        <input type="text" id="pname" maxlength="16" placeholder="Name of the subject…">
+        <button id="addp" style="flex:0 0 auto">Enroll ➤</button>
+      </div>
+      <ul class="lb" id="lb"></ul>
+      <div class="small">Scores start at <b>50</b> (baseline male energy). The scale officially ends at 0 — unofficially it goes below.</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <h2>📜 Rulebook <span style="float:right;font-weight:400" id="rcount"></span></h2>
+      <div class="addrule">
+        <input type="text" id="rtext" maxlength="70" placeholder="…counts as testosterone / …does not">
+        <div class="stepper">
+          <button id="down">−</button><span class="val" id="rval">+10</span><button id="up">+</button>
+        </div>
+        <button id="addr" style="flex:0 0 auto">Adopt</button>
+      </div>
+      <div class="small">Type the act, set the point swing, then hit <b>Apply</b> on the person who did it (or copped to it).</div>
+      <div id="rules" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Live Incident Report</h2>
+      <ul class="feed" id="feed"></ul>
+    </div>
+  </div>
+</div>
+<footer>everyone with this link shares one universe · updates propagate instantly · no data leaves the topic</footer>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============ sync transport: ntfy.sh ============ */
+const TOPIC = "testo-checker-jk-7q4x2m-bunker";
+const BASE  = "https://ntfy.sh/";
+const MAX_SNAP = 3800;           // ntfy free tier treats >4096B bodies as attachments
+const MAX_RULES = 26, MAX_EVENTS = 60, MAX_PLAYERS = 32, NAME_MAX = 16, TEXT_MAX = 70;
+
+let state = null;                // {rev,players,rules,events}
+let myName = localStorage.getItem("testo_me") || "";
+let viewing = "";
+let dirty = false, pubTimer = null, es = null, reconnectTimer = null;
+
+const uid = () => Math.random().toString(36).slice(2,8);
+
+function seedState(){
+  const r = uid();
+  return {rev:1, players:{}, rules:[
+    {id:"s1",text:"opened a jar for someone unprompted",delta:10},
+    {id:"s2",text:"mowed the lawn before being asked",delta:8},
+    {id:"s3",text:"sat with hands in lap like a toddler",delta:-9},
+    {id:"s4",text:"cried at a dog movie (alone, lights off)",delta:-14},
+    {id:"s5",text:"grunted when sitting down",delta:6},
+    {id:"s6",text:"replied 'k' to a paragraph",delta:-6},
+    {id:"s7",text:"chose the 97kg weight and made it look light",delta:12},
+    {id:"s8",text:"put the toilet seat down AND wiped the rim",delta:15},
+    {id:"s9",text:"flinched at a pop of bubble wrap",delta:-11},
+    {id:"s10",text:"says 'we need to talk' about the thermostat",delta:-8},
+  ],events:[]};
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function scoreOf(pid){
+  const p=state.players[pid]; if(!p) return null;
+  let s=p.base;
+  for(const e of state.events) if(e.p===pid) s+=e.d;
+  return Math.round(s);
+}
+function tier(s){
+  if(s===null) return "no subject";
+  if(s>=85) return "GIGACHAD";
+  if(s>=65) return "ALPHA";
+  if(s>=45) return "CERTIFIED BRO";
+  if(s>=25) return "BETA";
+  if(s>=0)  return "SOY-ADJACENT";
+  if(s>=-30) return "GRAVITY WELL";
+  return "TESTOSTERONE BLACK HOLE";
+}
+
+/* trim + fold old events into per-player base so the snapshot stays small */
+function trim(){
+  for(let k=0;k<3 && state.events.length>MAX_EVENTS;k++) state.events.sort((a,b)=>a.t-b.t);
+  while(state.events.length>MAX_EVENTS){
+    const e=state.events.shift();
+    if(state.players[e.p]) state.players[e.p].base+=e.d;
+  }
+  state.events.sort((a,b)=>a.t-b.t).splice(0, Math.max(0,state.events.length-MAX_EVENTS));
+  const ids=Object.keys(state.players);
+  while(ids.length>MAX_PLAYERS){const drop=ids.shift(); if(state.players[drop]) delete state.players[drop];}
+  if(state.rules.length>MAX_RULES) state.rules.splice(0,state.rules.length-MAX_RULES);
+  state.rules=state.rules.map(r=>({...r,text:r.text.slice(0,TEXT_MAX)}));
+  state.players=Object.fromEntries(Object.entries(state.players).map(([k,v])=>[k,{id:v.id,name:String(v.name).slice(0,NAME_MAX),base:v.base}]));
+}
+function serialize(){
+  trim();
+  let s=JSON.stringify(state);
+  if(s.length>MAX_SNAP){ // emergency shed: halve the event log, fold to bases
+    state.events.sort((a,b)=>a.t-b.t);
+    while(state.events.length>20 && JSON.stringify(state).length>MAX_SNAP){
+      const e=state.events.shift(); if(state.players[e.p]) state.players[e.p].base+=e.d;
+    }
+    s=JSON.stringify(state);
+  }
+  return s;
+}
+
+function merge(remote){
+  if(!remote || typeof remote.rev!=="number") return false;
+  if(!state){state=remote;return true;}
+  if(remote.rev<=state.rev && remote.rev!==state.rev) {
+    // still union ids (parallel edits) if same-ish revision
+  }
+  if(remote.rev>state.rev){
+    const players={...state.players,...remote.players};
+    const rmap=new Map(state.rules.map(r=>[r.id,r]));
+    for(const r of remote.rules) rmap.set(r.id,r);
+    const emap=new Map(state.events.map(e=>[e.id,e]));
+    for(const e of remote.events) emap.set(e.id,e);
+    state={rev:remote.rev,players,rules:[...rmap.values()],events:[...emap.values()]};
+    return true;
+  }
+  return false;
+}
+function publish(){
+  dirty=false; clearTimeout(pubTimer);
+  const body=serialize();
+  fetch(BASE+TOPIC,{method:"POST",body})
+    .then(r=>{ if(!r.ok) throw 0; setPill(true); render(); })
+    .catch(()=>{ setPill(false); scheduleRepoll(); });
+}
+function mutate(fn){ fn(state); state.rev++; render(); dirty=true;
+  clearTimeout(pubTimer); pubTimer=setTimeout(publish,450); }
+
+function setPill(ok,msg){
+  const p=document.getElementById("pill");
+  p.classList.toggle("off",!ok);
+  document.getElementById("pilltxt").textContent = msg || (ok?"live-synced":"offline — retrying");
+}
+function connect(){
+  if(es) es.close();
+  es=new EventSource(BASE+TOPIC);
+  es.onmessage=ev=>{
+    let snap=null; try{snap=JSON.parse(ev.data);}catch(_){return;}
+    if(snap && snap.rev!==undefined){
+      const changed=merge(snap);
+      if(changed){render(); flashToast("updated from the group");}
+    }
+  };
+  es.onopen=()=>setPill(true);
+  es.onerror=()=>{ setPill(false); };
+}
+function bootstrap(){
+  // fetch every cached snapshot, apply the newest (server keeps latest ~256 msgs)
+  fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc")
+    .then(r=>r.ok?r.text():Promise.reject(0))
+    .then(txt=>{
+      const lines=txt.split("\n").filter(Boolean);
+      let applied=null;
+      for(const l of lines){ try{const m=JSON.parse(l); if(m.message){const s=JSON.parse(m.message); if(s && s.rev && (!applied||s.rev>=applied.rev) ) applied=s;}}catch(_){}}
+      if(applied && (!state||applied.rev>=state.rev)){ state=applied; render(); setPill(true); }
+      else if(!state){ state=seedState(); render(); publish(); }
+      connect();
+    })
+    .catch(()=>{ setPill(false,"offline — retrying"); scheduleRepoll(); connect(); });
+}
+function scheduleRepoll(){ clearTimeout(reconnectTimer); reconnectTimer=setTimeout(()=>{ if(!dirty) bootstrap(); },6000); }
+
+/* ============ UI ============ */
+const $=id=>document.getElementById(id);
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+let toastT=null;
+function flashToast(m){ const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
+
+function buildGauge(){
+  const W=300,H=170;
+  $("gaugewrap").innerHTML=`
+  <svg width="${W}" height="${H}" viewBox="0 0 300 170">
+    <defs><linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ff4d5e"/><stop offset=".5" stop-color="#f5b942"/><stop offset="1" stop-color="#39d98a"/>
+    </linearGradient></defs>
+    <path d="M20 150 A130 130 0 0 1 280 150" fill="none" stroke="#222938" stroke-width="22" stroke-linecap="round"/>
+    <path d="M20 150 A130 130 0 0 1 280 150" fill="none" stroke="url(#gg)" stroke-width="14" stroke-linecap="round" opacity=".85"/>
+    <text x="16" y="166" fill="#8a93a6" font-size="10">0</text>
+    <text x="145" y="12" fill="#8a93a6" font-size="10">50</text>
+    <text x="277" y="166" fill="#8a93a6" font-size="10">100</text>
+    <g id="needle" class="needle" style="--rot:0deg">
+      <line x1="150" y1="150" x2="150" y2="42" stroke="#e8ecf4" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="150" cy="150" r="10" fill="#e8ecf4"/>
+    </g>
+  </svg>`;
+}
+let lastScore=null;
+function render(){
+  if(!state) return;
+  // viewer select + leaderboard
+  const sel=$("viewer"); const cur=viewing||myName&&pickMyId();
+  sel.innerHTML=`<option value="">— pick a player —</option>`+
+    Object.values(state.players).sort((a,b)=>a.name.localeCompare(b.name))
+      .map(p=>`<option value="${p.id}" ${p.id===cur?"selected":""}>${esc(p.name)}</option>`).join("");
+  viewing=sel.value;
+  const players=Object.values(state.players).map(p=>({id:p.id,name:p.name,score:scoreOf(p.id)}))
+    .sort((a,b)=>b.score-a.score);
+  $("pcount").textContent=`${players.length} enrolled`;
+  $("rcount").textContent=`${state.rules.length} rules`;
+  $("lb").innerHTML = players.length? players.map((p,i)=>{
+    const w=clamp(p.score,0,100);
+    const bar=p.score<0
+      ? `<div class="bar"><i class="neg" style="width:${clamp(-p.score,2,100)/2}%"></i></div>`
+      : `<div class="bar"><i style="width:${w}%"></i></div>`;
+    return `<li><span class="rank">${["🥇","🥈","🥉"][i]||i+1}</span><span class="pname">${esc(p.name)}${p.id===viewing?" ◀":""}</span>${bar}<span class="pts ${p.score<0?"neg":""}">${p.score}</span></li>`;
+  }).join("") : `<div class="empty">nobody enrolled. the study is just you and your own baseline.</div>`;
+
+  // gauge
+  const s = viewing!==""? scoreOf(viewing):null;
+  const sc=$("score"), tr=$("tier"), nd=document.getElementById("needle");
+  if(s===null){ sc.textContent="--"; sc.classList.remove("neg"); tr.textContent="no subject"; tr.classList.remove("neg"); $("who").textContent="add a player to begin the study"; }
+  else{
+    sc.textContent=s; sc.classList.toggle("neg",s<0);
+    tr.textContent=tier(s); tr.classList.toggle("neg",s<0);
+    const p=state.players[viewing];
+    $("who").textContent = p? `${p.name} · baseline 50 · ${state.events.filter(e=>e.p===viewing).length} logged incidents` : "";
+    const ang = clamp(s,0,100)/100*180-90;
+    if(nd){ nd.style.setProperty("--rot",ang+"deg"); nd.style.transform=`rotate(${ang}deg)`;
+      if(lastScore!==null&&lastScore!==s){ nd.classList.remove("spiked"); void nd.offsetWidth; nd.classList.add("spiked"); }
+      lastScore=s; }
+  }
+  // rules
+  $("rules").innerHTML = state.rules.map(r=>`
+    <div class="rule">
+      <span class="delta ${r.delta>=0?"up":"down"}">${r.delta>=0?"+":""}${r.delta}</span>
+      <span class="rtext">${esc(r.text)}</span>
+      <select data-rule="${r.id}"><option value="">apply to…</option>${players.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>
+      <button data-apply="${r.id}">Apply</button>
+      <button class="x" data-del="${r.id}" title="repeal">✕</button>
+    </div>`).join("") || `<div class="empty">rulebook is empty — enact your first law above</div>`;
+
+  // feed
+  const evs=[...state.events].sort((a,b)=>b.t-a.t).slice(0,14);
+  const rmap=Object.fromEntries(state.rules.map(r=>[r.id,r]));
+  $("feed").innerHTML = evs.length? evs.map(e=>{
+    const p=state.players[e.p], r=rmap[e.r];
+    return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}</li>`;
+  }).join("") : `<div class="empty">no incidents yet. suspiciously pure behaviour.</div>`;
+}
+function pickMyId(){
+  const mine=Object.values(state.players).find(p=>p.name.toLowerCase()===myName.toLowerCase());
+  return mine?mine.id:"";
+}
+function applyRule(rid,pid){
+  const r=state.rules.find(x=>x.id===rid);
+  if(!r||!state.players[pid]) return;
+  if(!viewing||viewing===pid) {/* keep view */}
+  mutate(st=>{ st.events.push({id:uid(),p:pid,r:rid,d:r.delta,x:r.text,t:Date.now()});
+    st.events=st.events.slice(-MAX_EVENTS); });
+  ding(r.delta>=0?520:140);
+}
+/* tiny WebAudio grunt/whoosh */
+let ac=null;
+function ding(f){
+  try{
+    ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(),g=ac.createGain();
+    o.frequency.setValueAtTime(f,ac.currentTime);
+    o.frequency.exponentialRampToValueAtTime(Math.max(40,f*(f<200?0.5:1.8)),ac.currentTime+.18);
+    g.gain.setValueAtTime(.25,ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.28);
+    o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+.3);
+  }catch(_){}
+}
+
+/* wiring */
+window.addEventListener("load",()=>{
+  buildGauge(); bootstrap();
+  let stepper=10;
+  const upRV=()=>{ $("rval").textContent=(stepper>0?"+":"")+stepper; $("rval").className="val "+(stepper>=0?"up":"down"); };
+  $("up").onclick=()=>{ stepper=clamp(stepper+5,-60,60); upRV(); };
+  $("down").onclick=()=>{ stepper=clamp(stepper-5,-60,60); upRV(); };
+  upRV();
+  $("addp").onclick=()=>{
+    const n=$("pname").value.trim().slice(0,NAME_MAX);
+    if(!n) return;
+    if(Object.values(state.players).some(p=>p.name.toLowerCase()===n.toLowerCase())){flashToast(n+" is already enrolled");$("viewer").value=pickMyId();viewing=$("viewer").value;render();return;}
+    const id=uid();
+    mutate(st=>{ st.players[id]={id,name:n,base:50}; });
+    $("pname").value=""; myName=n; localStorage.setItem("testo_me",n); viewing=id; render();
+  };
+  $("pname").addEventListener("keydown",e=>{if(e.key==="Enter")$("addp").click();});
+  $("addr").onclick=()=>{
+    const t=$("rtext").value.trim().slice(0,TEXT_MAX);
+    if(!t) return;
+    mutate(st=>{ st.rules.push({id:uid(),text:t,delta:stepper}); });
+    $("rtext").value="";
+  };
+  $("rtext").addEventListener("keydown",e=>{if(e.key==="Enter")$("addr").click();});
+  $("viewer").onchange=()=>{viewing=$("viewer").value;};
+  $("quickplus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q+",d:10,x:"generic bro points",t:Date.now()})); ding(520); };
+  $("quickminus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q-",d:-10,x:"unspecified soy incident",t:Date.now()})); ding(140); };
+  $("rules").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    if(b.dataset.del){ mutate(st=>{ st.rules=st.rules.filter(r=>r.id!==b.dataset.del); }); return; }
+    if(b.dataset.apply){
+      const sel=b.parentElement.querySelector("select");
+      if(!sel.value){ flashToast("pick who did it first"); return; }
+      applyRule(b.dataset.apply,sel.value); sel.value="";
+    }
+  });
+});
+function requireView(){ if(!viewing){ flashToast("pick a player on the gauge first"); return false;} return true; }
+</script>
+</body>
+</html>
