@@ -660,8 +660,8 @@ window.addEventListener("load",()=>{
     if(!state.pw){ $("rn-out").textContent="no authorisation codes issued yet"; return; }
     if(!pw){ $("rn-out").textContent="code required"; return; }
     if(await pwHash(pw)!==state.pw){ $("rn-out").textContent="✕ wrong code — or it was already burned"; ding(140); return; }
-    const n=$("rn-name").value.trim().toUpperCase().slice(0,NAME_MAX)||state.players[RN].name;
-    if(Object.values(state.players).some(q=>q.id!==RN && q.name===n)){ $("rn-out").textContent="✕ "+n+" already exists on the board"; return; }
+    const n=$("rn-name").value.trim().slice(0,NAME_MAX)||state.players[RN].name;
+    if(Object.values(state.players).some(q=>q.id!==RN && q.name.toLowerCase()===n.toLowerCase())){ $("rn-out").textContent="✕ "+n+" already exists on the board"; return; }
     const nextPw=(await shaHex(pw+"|apex-rot")).slice(0,10).toUpperCase();
     const newHash=await pwHash(nextPw);
     const pid=RN;
