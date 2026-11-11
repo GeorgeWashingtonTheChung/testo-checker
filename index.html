@@ -351,6 +351,15 @@ function serialize(){
   }
   return s;
 }
+function publishFresh(){
+  fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc").then(r=>r.text()).then(t=>{
+    let newest=null;
+    t.split("\n").forEach(l=>{ try{ const m=JSON.parse(l), s=JSON.parse(m.message||"");
+      if(s && typeof s.rev==="number" && (!newest || s.rev>newest.rev)) newest=s; }catch(_){}} );
+    if(newest && newest.rev>state.rev){ merge(newest); render(); return; }
+    state.rev=Math.max(Date.now(),state.rev+1); render(); publish();
+  }).catch(()=>{});
+}
 function merge(remote){
   if(!remote || typeof remote.rev!=="number" || !remote.players || !remote.rules) return false;
   if(!state){state=remote;return true;}
@@ -363,7 +372,7 @@ function publish(){
     .then(r=>{ if(!r.ok) throw 0; setPill(true); render(); })
     .catch(()=>{ setPill(false); scheduleRepoll(); });
 }
-function mutate(fn){ fn(state); state.rev++; render(); dirty=true;
+function mutate(fn){ fn(state); state.rev=Math.max(Date.now(),state.rev+1); render(); dirty=true;
   clearTimeout(pubTimer); pubTimer=setTimeout(publish,450); }
 function setPill(ok,msg){
   const p=document.getElementById("pill");
@@ -415,11 +424,11 @@ function forcePollSilent(){
     if(s){
       if(!streaming) setPill(true,"synced (polling)");
       ingest(s);
-      if(pruneExpired()){ state.rev++; render(); publish(); }
+      if(pruneExpired()){ publishFresh(); }
     }
   }).catch(()=>setPill(false,"offline — retrying"));
 }
-setInterval(()=>{ if(!dirty && state && pruneExpired()){ state.rev++; render(); publish(); } },60000);
+setInterval(()=>{ if(!dirty && state && pruneExpired()){ publishFresh(); } },60000);
 document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ forcePollSilent(); if(es&&es.readyState===2) connect(); } });
 function bootstrap(){
   fetch(BASE+TOPIC+"/json?poll=1&since=all&order=asc")
@@ -435,7 +444,7 @@ function bootstrap(){
       else if(!state){ state=seedState(); }
       const aged=pruneExpired();
       render(); setPill(true);
-      if(aged){ state.rev++; publish(); }
+      if(aged){ publishFresh(); }
       fateRoll();
       // identity gate: ask once; re-ask if the saved identity no longer exists
       if(!ME || (ME.id!=="" && !state.players[ME.id])) showIdMask();
