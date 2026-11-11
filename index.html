@@ -447,7 +447,7 @@ window.addEventListener("load",()=>{
     $("rtext").value="";
   };
   $("rtext").addEventListener("keydown",e=>{if(e.key==="Enter")$("addr").click();});
-  $("viewer").onchange=()=>{viewing=$("viewer").value;};
+  $("viewer").onchange=()=>{viewing=$("viewer").value; render();};
   $("quickplus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q+",d:10,x:"generic bro points",t:Date.now()})); ding(520); };
   $("quickminus").onclick=()=>{ if(!requireView())return; mutate(st=>st.events.push({id:uid(),p:viewing,r:"q-",d:-10,x:"unspecified soy incident",t:Date.now()})); ding(140); };
   $("rules").addEventListener("click",e=>{
