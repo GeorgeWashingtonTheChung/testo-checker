@@ -622,7 +622,7 @@ function render(){ autoView(); renderWheel();
     postRow = bformOpen
       ? `<span class="bico">⚔</span><div class="bmain"><div class="bttl">Post a bounty</div><div class="bsub">Everyone except the subject must approve before it starts · bounties may start at most every 2 weeks · pays +N with 3 witnesses, auto −5 if unclaimed</div></div>
          <div class="bform"><select id="b-p"></select><input id="b-x" maxlength="60" placeholder="the challenge, e.g. beat Alex at mario kart this weekend"><input id="b-d" type="number" min="5" max="99" value="20" style="flex:0 0 70px" title="reward"><button id="bpostgo">file it ➤</button></div>`
-      : `<span class="bico">⚔</span><div class="bmain"><div class="bttl">No bounty on the board</div><div class="bsub">Put a target and a prize on someone — needs everyone's blessing to start</div></div><button id="bpost">⚔ post a bounty</button>`;
+      : `<span class="bico">⚔</span><div class="bmain"><div class="bttl">${bots.length?"Queue the next bounty":"No bounty on the board"}</div><div class="bsub">${bots.length?"starts after the current one ends — at least 2 weeks since the last one went live":"Put a target and a prize on someone — needs everyone's blessing to start"}</div></div><button id="bpost">⚔ post a bounty</button>`;
   }
   $("bounty").innerHTML = bots.map(b=>{
     const p=state.players[b.p], hrs=Math.max(0,Math.ceil((b.t1-now)/3600000));
