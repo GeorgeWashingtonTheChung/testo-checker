@@ -403,6 +403,10 @@ function setPill(ok,msg){
 }
 function flashToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show");
   clearTimeout(flashToast._t); flashToast._t=setTimeout(()=>t.classList.remove("show"),2200); }
+function syncMeName(){
+  try{ if(ME&&ME.id&&state&&state.players[ME.id]&&ME.name!==state.players[ME.id].name){
+    ME.name=state.players[ME.id].name; localStorage.setItem("apexme",JSON.stringify(ME)); } }catch(_){}
+}
 function ingest(snap){
   if(snap && snap.rev!==undefined){
     if(merge(snap)){
@@ -471,7 +475,7 @@ function bootstrap(){
         let s=null; try{ s=JSON.parse(JSON.parse(l).message); }catch(_){ continue; }
         if(s && typeof s.rev==="number" && s.players && s.rules && (!best||s.rev>=best.rev)) best=s;
       }
-      if(best && (!state||best.rev>=state.rev)){ state=best; }
+      if(best && (!state||best.rev>=state.rev)){ state=best; syncMeName(); }
       else if(!state){ state=seedState(); }
       const aged=pruneExpired();
       render(); setPill(true);
