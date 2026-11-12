@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Apex T">
 <!-- v2: rulebook retired -> single Live Incident Report w/ custom delta.
-     |delta|>=15 = pending proposal needing peer approval. 7-day log expiry (folds into scores).
+     |delta|>=15 = pending proposal needing 2 independent peer approvals. 7-day log expiry (folds into scores).
      Tap a name on the board to make them the subject. PWA: +5 for home-screen install.
      State = whole-JSON snapshots on a public ntfy.sh topic; SSE + 25s poll fallback. -->
 <style>
@@ -196,7 +196,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
         </div>
         <div class="pending" id="pending"></div>
         <ul class="feed" id="feed"></ul>
-        <div class="hint">Anything <b>±15 or bigger</b> is filed as a <b>pending proposal</b> — another member must approve it before it counts. Smaller swings apply immediately.</div>
+        <div class="hint">Anything <b>±15 or bigger</b> is filed as a <b>pending proposal</b> — <b>two</b> members other than the subject must approve it before it counts (the filer counts as one). Smaller swings apply immediately.</div>
       </div>
     </div>
   </div>
@@ -245,7 +245,7 @@ const TOPIC = "testo-checker-jk-7q4x2m-bunker";
 const BASE  = "https://ntfy.sh/";
 const MAX_SNAP = 3800;           // ntfy free tier treats >4096B bodies as attachments
 const MAX_EVENTS = 60, MAX_PLAYERS = 32, NAME_MAX = 16, TEXT_MAX = 70;
-const APPROVAL_FLOOR = 15;       // |delta| >= this needs another member's blessing
+const APPROVAL_FLOOR = 15;       // |delta| >= this needs TWO members besides the subject
 const WEEK = 7*24*3600*1000;
 const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true || location.search.includes("standalone=1");
 
@@ -542,15 +542,17 @@ function render(){
   const pend=state.events.filter(e=>e.st==="pending").sort((a,b)=>a.t-b.t);
   $("pending").innerHTML = pend.map(e=>{
     const p=state.players[e.p];
+    const aps = e.aps || (e.ap? [e.ap] : []);
     const ctl = !ME ? `<span class="pnote">sign in (top of page) to bear witness</span>`
       : ME.id==="" ? `<span class="pnote">observers cannot witness</span>`
-      : ME.id===e.p ? `<span class="pnote">this is your own case — you need a different witness</span>`
+      : ME.id===e.p ? `<span class="pnote">this is your own case — the subject cannot self-approve</span>`
+      : aps.includes(ME.name) ? `<span class="pnote">you already voted — one more soul needed</span>`
       : `<button data-ok="${e.id}">✓ approve as ${esc(ME.name)}</button> <button data-no="${e.id}" class="rej">✕ reject</button>`;
     return `<div class="prow"><div class="ph">
         <span class="pd ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span>
         for <span class="pwho">${esc(p?p.name:"???")}</span> — ${esc(e.x)}
         ${e.by?`<i style="opacity:.55;font-size:11px"> · filed by ${esc(e.by)}</i>`:""}
-        <span class="pnote">⚖ big swing — needs a witness before it counts</span></div>
+        <span class="pnote">⚖ ${Math.min(aps.length,2)}/2 approved${aps.length?": "+esc(aps.join(", ")):""}</span></div>
       <div class="pctl">${ctl}</div></div>`;
   }).join("");
 
@@ -585,11 +587,12 @@ function logIncident(){
   if(!x){ flashToast("no reason, no incident — write what they did"); return; }
   const by = ME ? ME.name : "anonymous";
   const pending = Math.abs(d)>=APPROVAL_FLOOR;
-  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live",by});
+  const aps = pending && by!==state.players[pid].name ? [by] : [];
+  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live",by,aps});
     st.events=st.events.slice(-MAX_EVENTS); });
   $("if-x").value="";
   ding(d>=0?520:140);
-  if(pending) flashToast(`±${Math.abs(d)} filed as pending — needs a witness who isn't ${state.players[pid].name}`);
+  if(pending) flashToast(`±${Math.abs(d)} filed as pending — needs 2 approvers besides ${state.players[pid].name}`);
 }
 function maybeAutoBonus(){
   if(!STANDALONE || !state || !ME || !ME.id) return;
@@ -664,8 +667,14 @@ window.addEventListener("load",()=>{
     if(ME.id===ev.p){ flashToast("no self-approval — that's your own alibi"); return; }
     if(b.dataset.ok){
       mutate(st=>{ const v=st.events.find(x=>x.id===b.dataset.ok);
-        if(v && v.st==="pending"){ v.st="live"; v.ap=ME.name; } });
+        if(v && v.st==="pending"){
+          v.aps = v.aps || (v.ap? [v.ap] : []);
+          if(!v.aps.includes(ME.name)) v.aps.push(ME.name);
+          if(v.aps.length>=2){ v.st="live"; v.ap=v.aps.join(", "); }
+        } });
       ding(520);
+      const v2=state.events.find(x=>x.id===b.dataset.ok);
+      if(v2 && v2.st==="pending") flashToast("1 of 2 — needs one more witness");
     }else if(b.dataset.no){
       mutate(st=>{ st.events=st.events.filter(x=>x.id!==b.dataset.no); });
       flashToast("proposal shot down");
