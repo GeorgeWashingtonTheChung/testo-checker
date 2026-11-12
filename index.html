@@ -614,7 +614,7 @@ function render(){ autoView(); renderWheel();
   $("bounty").hidden = bots.length===0 && !member;
   const others = Object.keys(state.players).filter(id=>id!==(bots.find(b=>b.status==="propose")||{}).p).length;
   let postRow = "";
-  if(member && !pendProp && !bots.some(b=>b.status==="open"||b.status==="claimed"||b.status==="armed")){
+  if(member && !pendProp){
     postRow = bformOpen
       ? `<span class="bico">⚔</span><div class="bmain"><div class="bttl">Post a bounty</div><div class="bsub">Everyone except the subject must approve before it starts · bounties may start at most every 2 weeks · pays +N with 3 witnesses, auto −5 if unclaimed</div></div>
          <div class="bform"><select id="b-p"></select><input id="b-x" maxlength="60" placeholder="the challenge, e.g. beat Alex at mario kart this weekend"><input id="b-d" type="number" min="5" max="99" value="20" style="flex:0 0 70px" title="reward"><button id="bpostgo">file it ➤</button></div>`
