@@ -273,6 +273,7 @@ const STANDALONE = window.matchMedia("(display-mode: standalone)").matches || na
 
 let state = null;                // {rev,players,rules(legacy,always []),events}
 let viewing = "";
+function autoView(){ if(!viewing && ME && ME.id && state && state.players[ME.id]) viewing=ME.id; }
 
 /* ============ identity: asked once, remembered per device ============ */
 let ME=null; try{ ME=JSON.parse(localStorage.getItem("apexme")||"null"); }catch(_){}
@@ -544,7 +545,7 @@ function buildGauge(){
   </svg>`;
 }
 let lastScore=null;
-function render(){
+function render(){ autoView();
   if(!state) return;
   const players=Object.values(state.players).map(p=>({id:p.id,name:p.name,hs:!!p.hs,score:scoreOf(p.id)}))
     .sort((a,b)=>b.score-a.score);
@@ -589,7 +590,7 @@ function render(){
     const st = b.status==="won" ? '<span class="bst st-won">✅ CLAIMED · +'+b.d+' paid</span>'
       : b.status==="lost" ? '<span class="bst st-lost">☠️ FAILED · −'+b.pen+' collected</span>'
       : b.status==="claimed" ? '<span class="bst st-claimed">⚖ '+b.aps.length+' of '+b.need+' witnesses</span>'
-      : '<span class="bst st-open">ACTIVE · '+left+'</span>';
+      : '<span class="bst st-open">ACTIVE</span>';
     const mine = ME && ME.id===b.p && b.status==="open";
     const canSign = ME && ME.id!=="" && ME.id!==b.p && b.status==="claimed" && !(b.aps||[]).includes(ME.name);
     const dots = Array.from({length:b.need},(_,i)=>`<i class="bdot${i<(b.aps||[]).length?" on":""}"></i>`).join("");
