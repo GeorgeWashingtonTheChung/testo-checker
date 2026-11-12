@@ -422,6 +422,12 @@ function forceRefresh(){
   if(es && es.readyState===2) connect();
 }
 setInterval(()=>{ if(!dirty) forcePollSilent(); },25000);
+function pullFresh(fn){
+  return fetch(BASE+TOPIC+"/json?poll=1").then(r=>r.ok?r.text():"").then(t=>{
+    try{ const s=pickNewest(t); if(s) merge(s); }catch(_){}
+    render();
+  }).catch(()=>{}).then(fn);
+}
 function forcePollSilent(){
   fetch(BASE+TOPIC+"/json?poll=1").then(r=>r.ok?r.text():Promise.reject(0)).then(t=>{
     const s=pickNewest(t);
@@ -690,17 +696,17 @@ window.addEventListener("load",()=>{
     const b=e.target.closest("button"); if(!b) return;
     if(!ME || ME.id===""){ flashToast("first say who you are"); return; }
     if(b.dataset.bclaim){
-      mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bclaim);
+      b.disabled=true;
+      pullFresh(()=>{ mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bclaim);
         if(bo && bo.status==="open" && scoreOf(bo.p)>50){ bo.status="claimed"; bo.aps=[]; }
-        else flashToast("the board says otherwise"); });
-      ding(520);
+        else flashToast("the board says otherwise"); }); ding(520); });
     } else if(b.dataset.bsign){
-      mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bsign);
+      b.disabled=true;
+      pullFresh(()=>{ mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bsign);
         if(bo && bo.status==="claimed" && ME.id!==bo.p && !bo.aps.includes(ME.name)){
           bo.aps.push(ME.name);
           if(bo.aps.length>=bo.need){ bo.status="won";
-            st.events.push({id:"bounty-won-"+bo.id,p:bo.p,d:bo.d,x:bo.desc+" — cracked it, bounty paid",t:Date.now(),st:"live",ap:bo.aps.join(", ")}); } } });
-      ding(660);
+            st.events.push({id:"bounty-won-"+bo.id,p:bo.p,d:bo.d,x:bo.desc+" — cracked it, bounty paid",t:Date.now(),st:"live",ap:bo.aps.join(", ")}); } } }); ding(660); });
     }
   });
   $("pending").addEventListener("click",e=>{
@@ -710,15 +716,17 @@ window.addEventListener("load",()=>{
     if(!ev) return;
     if(ME.id===ev.p){ flashToast("no self-approval — that's your own alibi"); return; }
     if(b.dataset.ok){
-      mutate(st=>{ const v=st.events.find(x=>x.id===b.dataset.ok);
+      b.disabled=true;
+      pullFresh(()=>{ mutate(st=>{ const v=st.events.find(x=>x.id===b.dataset.ok);
         if(v && v.st==="pending"){
           v.aps = v.aps || (v.ap? [v.ap] : []);
           if(!v.aps.includes(ME.name)) v.aps.push(ME.name);
           if(v.aps.length>=2){ v.st="live"; v.ap=v.aps.join(", "); }
         } });
-      ding(520);
-      const v2=state.events.find(x=>x.id===b.dataset.ok);
-      if(v2 && v2.st==="pending") flashToast("1 of 2 — needs one more witness");
+        ding(520);
+        const v2=state.events.find(x=>x.id===b.dataset.ok);
+        if(v2 && v2.st==="pending") flashToast("1 of 2 — needs one more witness");
+      });
     }else if(b.dataset.no){
       mutate(st=>{ st.events=st.events.filter(x=>x.id!==b.dataset.no); });
       flashToast("proposal shot down");
