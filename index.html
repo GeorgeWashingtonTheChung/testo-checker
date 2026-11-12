@@ -194,6 +194,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
           <button class="chip" data-set="25">+25</button>
           <button id="if-log">Log it ➤</button>
         </div>
+        <div class="pending" id="bounty"></div>
         <div class="pending" id="pending"></div>
         <ul class="feed" id="feed"></ul>
         <div class="hint">Anything <b>±15 or bigger</b> is filed as a <b>pending proposal</b> — <b>two</b> members other than the subject must approve it before it counts (the filer counts as one). Smaller swings apply immediately.</div>
@@ -383,7 +384,10 @@ function flashToast(m){ const t=document.getElementById("toast"); t.textContent=
   clearTimeout(flashToast._t); flashToast._t=setTimeout(()=>t.classList.remove("show"),2200); }
 function ingest(snap){
   if(snap && snap.rev!==undefined){
-    if(merge(snap)){ render(); flashToast("updated from the group"); fateRoll(); }
+    if(merge(snap)){
+      try{ if(ME&&ME.id&&snap.players[ME.id]&&ME.name!==snap.players[ME.id].name){
+        ME.name=snap.players[ME.id].name; localStorage.setItem("apexme",JSON.stringify(ME)); renderMe(); } }catch(_){}
+      render(); flashToast("updated from the group"); fateRoll(); }
   }
 }
 function connect(){
@@ -539,6 +543,29 @@ function render(){
 
   $("if-p").innerHTML=`<option value="">who did it…</option>`+players.map(p=>`<option value="${p.id}" ${p.id===viewing?"selected":""}>${esc(p.name)}</option>`).join("");
 
+  const now=Date.now();
+  (state.bounties||[]).forEach(b=>{
+    if((b.status==="open"||b.status==="claimed") && now>b.t1){
+      b.status="lost";
+      if(!state.events.some(x=>x.id==="bounty-lost-"+b.id))
+        state.events.push({id:"bounty-lost-"+b.id,p:b.p,d:-b.pen,x:b.desc+" — expired, never cracked it",t:now,st:"live"});
+    }});
+  const bots=(state.bounties||[]);
+  $("bounty").innerHTML = bots.map(b=>{
+    const p=state.players[b.p], daysLeft=Math.max(0,Math.ceil((b.t1-now)/86400000));
+    const stc = b.status==="won" ? '✅ CLAIMED' : b.status==="lost" ? '☠️ FAILED — '+b.pen+' T collected' : b.status==="claimed" ?
+      (b.aps||[]).length+" of "+b.need+" witnesses signed — pending" : "ACTIVE";
+    const mine = ME && ME.id===b.p && b.status==="open";
+    const canSign = ME && ME.id!=="" && ME.id!==b.p && b.status==="claimed" && !(b.aps||[]).includes(ME.name);
+    const score=scoreOf(b.p);
+    return `<div class="prow" style="border-color:rgba(255,204,0,.25)"><div class="ph">
+      <span class="pd up">⚔ BOUNTY ${b.d}</span> on <span class="pwho">${esc(p?p.name:"???")}</span> — ${esc(b.desc)}
+      · now ${score} · ${daysLeft}d left · ${stc}
+      ${(b.aps||[]).length?`<i style="opacity:.55;font-size:11px"> · signed: ${esc(b.aps.join(", "))}</i>`:""}</div>
+      <div class="pctl">${mine?`<button data-bclaim="${b.id}">✓ I did it — claim the ${b.d}</button>`:""}
+      ${canSign?`<button data-bsign="${b.id}">⚖ witness as ${esc(ME.name)} (witnesses ${Math.min((b.aps||[]).length+1,b.need)}/${b.need})</button>`:""}</div></div>`;
+  }).join("");
+
   const pend=state.events.filter(e=>e.st==="pending").sort((a,b)=>a.t-b.t);
   $("pending").innerHTML = pend.map(e=>{
     const p=state.players[e.p];
@@ -659,6 +686,23 @@ window.addEventListener("load",()=>{
     setTimeout(()=>{ $("idmask").hidden=true; },5000);
   });
   $("idobs").onclick=()=>setMe("");
+  $("bounty").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    if(!ME || ME.id===""){ flashToast("first say who you are"); return; }
+    if(b.dataset.bclaim){
+      mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bclaim);
+        if(bo && bo.status==="open" && scoreOf(bo.p)>50){ bo.status="claimed"; bo.aps=[]; }
+        else flashToast("the board says otherwise"); });
+      ding(520);
+    } else if(b.dataset.bsign){
+      mutate(st=>{ const bo=st.bounties.find(x=>x.id===b.dataset.bsign);
+        if(bo && bo.status==="claimed" && ME.id!==bo.p && !bo.aps.includes(ME.name)){
+          bo.aps.push(ME.name);
+          if(bo.aps.length>=bo.need){ bo.status="won";
+            st.events.push({id:"bounty-won-"+bo.id,p:bo.p,d:bo.d,x:bo.desc+" — cracked it, bounty paid",t:Date.now(),st:"live",ap:bo.aps.join(", ")}); } } });
+      ding(660);
+    }
+  });
   $("pending").addEventListener("click",e=>{
     const b=e.target.closest("button"); if(!b) return;
     if(!ME || ME.id===""){ flashToast("first say who you are"); return; }
