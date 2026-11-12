@@ -175,6 +175,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 #avpick button{font-size:22px;background:#141926;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin:4px 2px;cursor:pointer}
 .rnbtn{background:none;border:none;color:#5b6375;cursor:pointer;font-size:12px;padding:0 0 0 6px}
 </style>
+<link rel="stylesheet" href="ui.css">
 </head>
 <body>
 <div class="wrap">
@@ -380,8 +381,11 @@ function trim(){
   }
   const ids=Object.keys(state.players);
   while(ids.length>MAX_PLAYERS) delete state.players[ids.shift()];
-  state.players=Object.fromEntries(Object.entries(state.players).map(([k,v])=>
-    [k,{id:v.id,name:String(v.name).slice(0,NAME_MAX),base:v.base,hs:!!v.hs}]));
+  state.players=Object.fromEntries(Object.entries(state.players).map(([k,v])=>{
+    const o={id:v.id,name:String(v.name).slice(0,NAME_MAX),base:v.base,hs:!!v.hs};
+    if(v.av) o.av=String(v.av).slice(0,8);
+    if(v.gm&&v.gc) o.gm=[Math.min(2,v.gm[0]|0),Math.min(100,v.gm[1]|0)],o.gc=Math.min(999,v.gc|0);
+    return [k,o]; }));
   state.events=state.events.map(e=>({...e,x:String(e.x).slice(0,TEXT_MAX)}));
   state.rules=[];   // rulebook retired; field kept so old/new clients share the guard
 }
@@ -570,7 +574,7 @@ function buildGauge(){
 let lastScore=null;
 function render(){ autoView(); renderWheel();
   if(!state) return;
-  const players=Object.values(state.players).map(p=>({id:p.id,name:p.name,hs:!!p.hs,score:scoreOf(p.id)}))
+  const players=Object.values(state.players).map(p=>({id:p.id,name:p.name,hs:!!p.hs,av:p.av,score:scoreOf(p.id)}))
     .sort((a,b)=>b.score-a.score);
   $("pcount").textContent=`${players.length} enrolled`;
   $("fcount").textContent=`${state.events.filter(isLive).length} logged`;
@@ -1114,5 +1118,6 @@ $("bounty").addEventListener("click",e=>{
 })();
 render();
 </script>
+<script src="icon.js"></script>
 </body>
 </html>
