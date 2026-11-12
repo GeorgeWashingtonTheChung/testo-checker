@@ -984,74 +984,86 @@ window.addEventListener("load",()=>{
 
 /* ===== v8: Monday wheel, bounty proposals, clear log ===== */
 var bformOpen=false, spinBusy=false;
-const WHEEL_KICK=1794758400000; /* Mon 16 Nov 2026, 00:00 AWST */
+const WHEEL_KICK=1794776400000; /* Mon 16 Nov 2026, 05:00 AWST */
 const WCOL=["#ff5f6d","#ffb347","#ffe066","#7ce38b","#5aa9ff","#c792ea"];
 function wkKey(t){ const d=Math.floor((t+288e5)/864e5); return (d-((d%7)+3)%7)*864e5-288e5; } /* Monday 00:00 AWST epoch ms */
 function wheelOdds(){
   const scored=Object.keys(state.players).map(id=>({id,s:scoreOf(id)})).sort((a,b)=>a.s-b.s);
   const n=scored.length, ws=scored.map((_,i)=>Math.pow(2,n-1-i));
+  let gi=0;
+  while(gi<n){ let gj=gi; while(gj+1<n && scored[gj+1].s===scored[gi].s) gj++;
+    let sum=0; for(let k=gi;k<=gj;k++) sum+=ws[k];
+    const avg=sum/(gj-gi+1); for(let k=gi;k<=gj;k++) ws[k]=avg; gi=gj+1; }
   const tot=ws.reduce((a,b)=>a+b,0);
   return scored.map((o,i)=>({id:o.id,pct:ws[i]/tot,col:WCOL[i%WCOL.length]}));
 }
 function wheelPick(o){ let r=Math.random(),acc=0; for(const x of o){acc+=x.pct; if(r<acc) return x.id;} return o[o.length-1].id; }
 function fmtLeft(ms){ if(ms<0)ms=0; const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
   return d?d+"d "+h+"h "+m+"m":h?h+"h "+m+"m":m+"m"; }
+function wheelSegs(odds){ let a=0; return odds.map(o=>{const a0=a; a+=o.pct*360; return `${o.col} ${a0.toFixed(1)}deg ${a.toFixed(1)}deg`;}).join(","); }
 function renderWheel(){
   const el=$("wheelhero"); if(!el) return;
-  const W=state.wheel || (state.wheel={next:WHEEL_KICK,hist:[]});
-  const now=Date.now();
+  const W=state.wheel || (state.wheel={next:WHEEL_KICK});
+  const now=Date.now(), wk=wkKey(now);
   const member=!!(ME && ME.id && state.players[ME.id]);
-  const _last=(W.hist||[]).slice(-1)[0];
-  const spun = _last && wkKey(_last.at)===wkKey(now) ? _last : null;
+  const pick = W.pick && wkKey(W.pick.at)===wk ? W.pick : null;
   const due=now>=W.next;
   el.hidden=false;
   if(spinBusy) return;
+  const odds=wheelOdds();
+  const oddsRow=odds.map(o=>`<span><i style="background:${o.col}"></i>${esc(state.players[o.id].name)} ${Math.round(o.pct*100)}%</span>`).join("");
+  const wheelBox=`<div class="wheelbox"><span class="ptr"></span><div id="wheel" style="background:conic-gradient(from -90deg,${wheelSegs(odds)})"></div><div class="wheelmid"><b>☠️<br>VERDICT</b></div></div>`;
   let html="";
-  if(spun){
-    const p=state.players[spun.p];
-    html=`<div class="whrow"><span style="font-size:26px">🎯</span><div class="wcol">
-      <div class="wttl">The wheel favoured <b>${esc(p?p.name:"a lost soul")}</b> — +20 T of divine intervention</div>
-      <div class="wsub">spun this Monday · next spin in <b>${fmtLeft(W.next-now)}</b></div></div></div>`;
-  } else if(due && member){
-    const odds=wheelOdds(); let a=0;
-    const segs=odds.map(o=>{const a0=a; a+=o.pct*360; return `${o.col} ${a0.toFixed(1)}deg ${a.toFixed(1)}deg`;}).join(",");
-    html=`<div class="whrow"><div class="wheelbox"><span class="ptr"></span>
-      <div id="wheel" style="background:conic-gradient(from -90deg,${segs})"></div>
-      <div class="wheelmid"><b>MONDAY<br>WHEEL</b></div></div>
-      <div class="wcol"><div class="wttl">The <b>Monday Wheel</b> is live</div>
-        <div class="wsub">lands on low T. whoever it picks gets +20 — one spin this week, first hand on the button wins it</div>
-        <div class="oodds">${odds.map(o=>`<span><i style="background:${o.col}"></i>${esc(state.players[o.id].name)} ${Math.round(o.pct*100)}%</span>`).join("")}</div>
-        <button data-spin="1">🎡 SPIN THE WHEEL</button></div></div>`;
+  if(pick && localStorage.getItem("apexwd")===String(wk)){
+    const p=state.players[pick.p];
+    html=`<div class="whrow"><span style="font-size:26px">☠️</span><div class="wcol">
+      <div class="wttl">The wheel took <b>${esc(p?p.name:"a lost soul")}</b> — punishment decided by the board</div>
+      <div class="wsub">locked in this Monday · wheel spins again in <b>${fmtLeft(W.next-now)}</b></div>
+      <div class="oodds">${oddsRow}</div></div></div>`;
+  } else if(pick || (due && member)){
+    html=`<div class="whrow">${wheelBox}<div class="wcol">
+      <div class="wttl">The <b>Monday Wheel</b> is deciding...</div>
+      <div class="wsub">the victim is already locked in — same victim for everyone. watch it land</div>
+      <div class="oodds">${oddsRow}</div></div></div>`;
+    setTimeout(()=>autoSpin(wk),300);
+  } else if(due){
+    html=`<div class="whrow"><span style="font-size:26px">🎡</span><div class="wcol"><div class="wttl">The wheel is locking in...</div><div class="wsub">open the app as a member, or hang tight — verdict incoming</div></div></div>`;
   } else {
-    const when = due? W.next+6048e5 : W.next;
-    const odds=wheelOdds();
     html=`<div class="whrow"><span style="font-size:26px">🎡</span><div class="wcol">
-      <div class="wttl">The <b>Monday Wheel</b> returns every Monday</div>
-      <div class="wsub">weighted against the alpha — last place gets the best odds</div>
-      <div class="wcount" id="wcount">${fmtLeft(when-now)}</div>
-      <div class="oodds">${odds.map(o=>`<span><i style="background:${o.col}"></i>${esc(state.players[o.id].name)} ${Math.round(o.pct*100)}%</span>`).join("")}</div>
-      ${due&&!member?'<div class="wsub">sign in to spin</div>':""}</div></div>`;
+      <div class="wttl">The <b>Monday Wheel</b> — a punishment we decide ourselves</div>
+      <div class="wsub">locks in every Monday 5am AWST, chosen before anyone opens it · odds against the alpha, equal T = equal odds</div>
+      <div class="wcount" id="wcount">${fmtLeft(W.next-now)}</div>
+      <div class="oodds">${oddsRow}</div></div></div>`;
   }
   el.innerHTML=html;
-  const c=$("wcount"); if(c) setInterval(()=>{ const el2=$("wcount"); if(el2) el2.textContent=fmtLeft(when-now+(Date.now()-now)); },30000);
 }
-$("wheelhero").addEventListener("click",e=>{
-  const b=e.target.closest("[data-spin]"); if(!b||spinBusy) return;
-  spinBusy=true;
-  const odds=wheelOdds(), win=wheelPick(odds);
-  let cum=0,center=0; for(const o of odds){ const span=o.pct*360; if(o.id===win){center=cum+span/2;break;} cum+=span; }
-  const wheel=$("wheel"), R=360*5+(360-center);
-  requestAnimationFrame(()=>{ wheel.style.transition="transform 4.2s cubic-bezier(.08,.72,.1,1)"; wheel.style.transform="rotate("+R+"deg)"; });
-  setTimeout(()=>{
-    pullFresh(()=>{ mutate(st=>{
-      st.wheel=st.wheel||{next:WHEEL_KICK,hist:[]};
-      if((st.wheel.hist||[]).some(h=>wkKey(h.at)>=wkKey(Date.now()))){ flashToast("someone beat you to the spin"); spinBusy=false; render(); return; }
-      st.wheel.hist.push({at:Date.now(),p:win,until:st.wheel.next});
-      st.events.push({id:"wheel-"+wkKey(Date.now()),p:win,d:20,x:"the Monday wheel chose you — divine intervention",t:Date.now(),st:"live"});
-      st.wheel.next = wkKey(Date.now())+6048e5;
-    }); spinBusy=false; ding(740); });
-  },4400);
-});
+function autoSpin(wk){
+  if(spinBusy) return; spinBusy=true;
+  const fire=(pickId)=>{
+    const ods=wheelOdds(); let cum=0,center=0;
+    for(const o of ods){ const span=o.pct*360; if(o.id===pickId){center=cum+span/2;break;} cum+=span; }
+    const wheel=$("wheel");
+    if(wheel) requestAnimationFrame(()=>{ wheel.style.transition="transform 4.2s cubic-bezier(.08,.72,.1,1)"; wheel.style.transform="rotate("+(360*5+(360-center))+"deg)"; });
+    setTimeout(()=>{ spinBusy=false; localStorage.setItem("apexwd",String(wk)); ding(740); render(); },4400);
+  };
+  if(ME && ME.id && state.players[ME.id]){
+    pullFresh(()=>{
+      mutate(st=>{
+        st.wheel=st.wheel||{next:WHEEL_KICK};
+        if(!(st.wheel.pick && wkKey(st.wheel.pick.at)>=wk)){
+          const pid=wheelPick(wheelOdds());
+          st.wheel.pick={p:pid,at:Date.now()};
+          st.events.push({id:"wheel-"+wk,p:pid,d:0,x:"the Monday wheel chose you — punishment to be decided by the board",t:Date.now(),st:"live"});
+        }
+        st.wheel.next = wk+6048e5+18e6; /* next Monday 05:00 AWST */
+      });
+      fire(state.wheel.pick.p);
+    });
+  } else if(state.wheel && state.wheel.pick){
+    fire(state.wheel.pick.p);
+  } else { spinBusy=false; render(); }
+}
+setInterval(()=>{ try{ if(state && !spinBusy) renderWheel(); }catch(e){} },60000);
 /* bounty proposals + posting */
 $("bounty").addEventListener("click",e=>{
   const t=e.target;
