@@ -45,3 +45,8 @@ input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px color-mix
 footer{opacity:.7}
 @media(max-width:520px){.bar{width:64px}.score{font-size:56px}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+@keyframes hue{to{filter:hue-rotate(360deg)}}
+.flexmode .gauge{animation:flexq .8s}
+@keyframes flexq{0%,100%{transform:scale(1)}25%{transform:scale(1.06) rotate(-1deg)}50%{transform:scale(1.1)}75%{transform:scale(1.06) rotate(1deg)}}
+#wheel{transition:none}
