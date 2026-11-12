@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Apex T">
 <!-- v2: rulebook retired -> single Live Incident Report w/ custom delta.
      |delta|>=15 = pending proposal needing 2 independent peer approvals. 7-day log expiry (folds into scores).
-     Tap a name on the board to make them the subject. PWA: +5 for home-screen install.
+     Tap a name on the board to make them the subject. PWA: installable (bonus since revoked).
      State = whole-JSON snapshots on a public ntfy.sh topic; SSE + 25s poll fallback. -->
 <style>
 :root{--bg:#0d0f14;--card:#161a23;--card2:#1d2330;--ink:#e8ecf4;--dim:#8a93a6;--gold:#f5b942;--red:#ff4d5e;--green:#39d98a;--line:#2a3142;--mono:ui-monospace,'SF Mono',Menlo,monospace}
@@ -259,7 +259,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
     <div class="gtrack"><div class="gzone" id="gzone"></div><div class="gmark" id="gmark"></div></div>
     <button class="gstop" id="gstop">STOP THE BAR</button>
     <div class="hof" id="hof"></div>
-    <div class="idsub" id="gmsg" style="margin-top:12px">gains do not appear in the incident log. muscles do not lie.</div>
+    <div class="idsub" id="gmsg" style="margin-top:12px">records only — the bench pays in glory, not testosterone. muscles do not lie.</div>
     <button class="obs" id="gclose" style="position:absolute;top:12px;right:12px;width:auto;padding:4px 10px">✕</button>
   </div>
 </div>
@@ -671,20 +671,17 @@ function render(){ autoView(); renderWheel();
   const evs=[...state.events].filter(e=>isLive(e) && !e.h).sort((a,b)=>b.t-a.t).slice(0,30);
   $("feed").innerHTML = evs.length? evs.map(e=>{
     const p=state.players[e.p];
-    return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}${e.ap?` <span class="ap">⚖ ${esc(e.ap)}</span>`:""}${e.by?` <i style="opacity:.55;font-size:11px">· filed by ${esc(e.by)}</i>`:""}<span class="age">${ago(e.t)}</span></li>`;
+    return `<li><b>${esc(p?p.name:"???")}</b> <span class="d ${e.d>=0?"up":"down"}">${e.d>=0?"+":""}${e.d}</span> — ${esc(e.x)}${e.fx?" 👑":""}${e.ap?` <span class="ap">⚖ ${esc(e.ap)}</span>`:""}${e.by?` <i style="opacity:.55;font-size:11px">· filed by ${esc(e.by)}</i>`:""}<span class="age">${ago(e.t)}</span></li>`;
   }).join("") : `<div class="empty">no incidents on record. suspiciously pure behaviour.</div>`;
 
   const hs=$("hs");
   if(STANDALONE){
     hs.className="hs ok";
     const mine = ME && ME.id && state.players[ME.id];
-    hs.innerHTML = (mine && mine.hs)
-      ? `<b>📱 Home-screen verified.</b> Your +5 install bonus is banked. One per member — your friends must install it themselves.`
-      : mine ? `<b>📱 Home-screen verified.</b> Your +5 is being banked right now.`
-      : `<b>📱 Home-screen verified.</b> The +5 install bonus is yours alone — it lands the moment you claim who you are. Nobody can hand it out on anyone's behalf.`;
+    hs.innerHTML = `<b>📱 Home-screen verified.</b> Installed like an alpha. There used to be a +5 for this — management has revoked it.`;
   }else{
     hs.className="hs";
-    hs.innerHTML=`💡 Add this page to your <b>home screen</b> — open it from there and <i>you yourself</i> get a one-time <b>+5</b> install bonus. (The app genuinely checks.)`;
+    hs.innerHTML=`💡 Add this page to your <b>home screen</b> — it launches faster, looks native, and the live icon rides along. (There used to be a +5 in it for you. Management got nervous.)`;
   }
   renderMe();
   try{ updateIcon(); }catch(_){}
@@ -700,7 +697,7 @@ function logIncident(){
   const by = ME ? ME.name : "anonymous";
   const pending = Math.abs(d)>=APPROVAL_FLOOR;
   const aps = pending && by!==state.players[pid].name ? [by] : [];
-  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live",by,aps});
+  mutate(st=>{ st.events.push({id:uid(),p:pid,d,x,t:Date.now(),st:pending?"pending":"live",by,aps,...(x.trim().toUpperCase()==="APEX"?{fx:1,x:"APEX"}:{})});
     st.events=st.events.slice(-MAX_EVENTS); });
   $("if-x").value="";
   ding(d>=0?520:140);
@@ -711,10 +708,7 @@ function maybeAutoBonus(){
   const p=state.players[ME.id];
   if(!p || p.hs) return;
   mutate(st=>{ const q=st.players[ME.id];
-    if(q && !q.hs){ q.hs=true;
-      st.events.push({id:uid(),p:ME.id,d:5,x:"📱 opened from the home screen — install bonus, self-claimed",t:Date.now(),st:"live",ap:"home-screen check"});
-      st.events=st.events.slice(-MAX_EVENTS); } });
-  ding(700); flashToast("home-screen +5 banked — to you, and only you");
+    if(q && !q.hs){ q.hs=true; } });
 }
 let ac=null;
 function ding(f){
@@ -843,6 +837,26 @@ window.addEventListener("load",()=>{
   // --- unlocks / secret sequences (device-local, silent) ---
   let U={}; try{ U=JSON.parse(localStorage.getItem("apexu")||"{}"); }catch(_){}
   const saveU=()=>localStorage.setItem("apexu",JSON.stringify(U));
+  // --- v11: extra secrets (silent, cosmetic, zero testosterone) ---
+  let tapSeq={},seqTimer=null;
+  function secretTap(key,need,cb){
+    tapSeq[key]=(tapSeq[key]||0)+1;
+    clearTimeout(seqTimer); seqTimer=setTimeout(()=>{tapSeq={};},3200);
+    if(tapSeq[key]>=need){ tapSeq={}; cb(); }
+  }
+  document.addEventListener("click",e=>{
+    if(e.target.closest(".score")) secretTap("flex",5,()=>{
+      document.body.classList.add("flexmode"); setTimeout(()=>document.body.classList.remove("flexmode"),900);
+      flashToast("the board senses aggression"); });
+    if(e.target.id==="wheel"||e.target.closest(".wheelbox .ptr")) secretTap("ferris",3,()=>{
+      const w=$("wheel"); if(!w)return;
+      w.style.transition="transform 1.6s cubic-bezier(.15,.9,.2,1)"; w.style.transform="rotate(1440deg)";
+      setTimeout(()=>{w.style.transition="none";w.style.transform="";renderWheel&&renderWheel();},1700); });
+    if(e.target.closest(".syncpill")) secretTap("chaos",4,()=>{
+      const p=document.querySelector(".syncpill"); if(!p)return; const old=p.innerHTML;
+      p.innerHTML='<i style="animation:hue .6s linear infinite"></i> chaos-synced';
+      setTimeout(()=>{p.innerHTML=old;},5000); });
+  });
   let tapLog=[];
   function watch(k,pat,ms,fn){ const now=Date.now();
     tapLog.push({k,t:now}); tapLog=tapLog.filter(x=>now-x.t<ms);
@@ -885,7 +899,7 @@ window.addEventListener("load",()=>{
   }
   $("pclose").onclick=()=>$("prefs").hidden=true;
 
-  // --- the bench (hidden minigame, silent gains, one set per member per day) ---
+  // --- the bench (hidden minigame, records only, no testosterone) ---
   const GZONE=[30,18,10],GREWARD=[5,7,10],GPERIOD=[1600,1100,750];
   let gDiff=0,gZoneL=0,gTimer=null,gT0=0;
   window.gPosAt=t=>{ const u=(t-gT0)/GPERIOD[gDiff]; return u>1?99:u*97; };
@@ -912,17 +926,13 @@ window.addEventListener("load",()=>{
       const acc=Math.max(1,Math.round(100*(1-Math.abs(gMark-mid)/(GZONE[gDiff]/2))));
       const mine=state.players[ME.id];
       const isRec=!mine.gm || acc>mine.gm[1];
-      const capped=state.events.some(x=>x.id==="gym-"+today+"-"+ME.id);
       mutate(st=>{
         const q=st.players[ME.id];
         q.gc=(q.gc||0)+1;
         if(!q.gm || acc>q.gm[1]) q.gm=[gDiff,acc];
-        if(!capped) st.events.push({id:"gym-"+today+"-"+ME.id,p:ME.id,d:GREWARD[gDiff],x:"left the gym quietly",t:Date.now(),st:"live",h:1});
       });
       renderHof();
-      $("gmsg").textContent = capped
-        ? "record night — "+acc+"% on the "+["PINK","GARAGE","QUINN"][gDiff]+" bar. but muscles need 24h for gains."
-        : "✓ locked out. +"+GREWARD[gDiff]+" absorbed"+(isRec?" — NEW RECORD: "+acc+"% centred":"")+" — the log never saw it.";
+      $("gmsg").textContent = "✓ locked out."+(isRec?" NEW RECORD: "+acc+"% centred on the "+["PINK","GARAGE","QUINN"][gDiff]+" bar.":" "+acc+"%. ")+"the hall of records remembers — the board does not. zero testosterone involved.";
       ding(700);
     } else { $("gmsg").textContent = gMark>97 ? "too slow — the bar left without you." : "the bar folded you like a lawn chair."; ding(140); }
     gT0=performance.now(); placeZone();
@@ -992,14 +1002,17 @@ const WHEEL_KICK=1794776400000; /* Mon 16 Nov 2026, 05:00 AWST */
 const WCOL=["#ff5f6d","#ffb347","#ffe066","#7ce38b","#5aa9ff","#c792ea"];
 function wkKey(t){ const d=Math.floor((t+288e5)/864e5); return (d-((d%7)+3)%7)*864e5-288e5; } /* Monday 00:00 AWST epoch ms */
 function wheelOdds(){
-  const scored=Object.keys(state.players).map(id=>({id,s:scoreOf(id)})).sort((a,b)=>a.s-b.s);
-  const n=scored.length, ws=scored.map((_,i)=>Math.pow(2,n-1-i));
-  let gi=0;
-  while(gi<n){ let gj=gi; while(gj+1<n && scored[gj+1].s===scored[gi].s) gj++;
-    let sum=0; for(let k=gi;k<=gj;k++) sum+=ws[k];
-    const avg=sum/(gj-gi+1); for(let k=gi;k<=gj;k++) ws[k]=avg; gi=gj+1; }
+  const scored=Object.keys(state.players).map(id=>({id,s:scoreOf(id)}));
+  const top=Math.max(...scored.map(o=>o.s));
+  const ws=scored.map(o=>Math.exp((top-o.s)/40)); // odds follow the ACTUAL gap to the top; equal T = equal w automatically
   const tot=ws.reduce((a,b)=>a+b,0);
-  return scored.map((o,i)=>({id:o.id,pct:ws[i]/tot,col:WCOL[i%WCOL.length]}));
+  const out=scored.map((o,i)=>({id:o.id,pct:ws[i]/tot}));
+  const mx=out.reduce((m,x)=>x.pct>m.pct?x:m,out[0]);
+  if(mx.pct>0.95){ const over=mx.pct-0.95; mx.pct=0.95;
+    const rest=out.filter(x=>x!==mx), rtot=rest.reduce((a,x)=>a+x.pct,0)||1;
+    rest.forEach(x=>x.pct+=over*x.pct/rtot); }
+  out.sort((a,b)=>b.pct-a.pct);
+  return out.map((o,i)=>({...o,col:WCOL[i%WCOL.length]}));
 }
 function wheelPick(o){ let r=Math.random(),acc=0; for(const x of o){acc+=x.pct; if(r<acc) return x.id;} return o[o.length-1].id; }
 function fmtLeft(ms){ if(ms<0)ms=0; const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
@@ -1035,7 +1048,7 @@ function renderWheel(){
   } else {
     html=`<div class="whrow"><span style="font-size:26px">🎡</span><div class="wcol">
       <div class="wttl">The <b>Monday Wheel</b> — a punishment we decide ourselves</div>
-      <div class="wsub">locks in every Monday 5am AWST, chosen before anyone opens it · odds against the alpha, equal T = equal odds</div>
+      <div class="wsub">locks in every Monday 5am AWST, chosen before anyone opens it · the further below the top you are, the hotter the slice (up to 95%) · equal T = equal odds</div>
       <div class="wcount" id="wcount">${fmtLeft(W.next-now)}</div>
       <div class="oodds">${oddsRow}</div></div></div>`;
   }
