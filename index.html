@@ -107,6 +107,28 @@ button:active{transform:scale(.97)}
 .enr summary{cursor:pointer;font-size:12px;color:var(--dim);list-style:none}
 .enr summary::-webkit-details-marker{display:none}
 .enr summary:hover{color:var(--gold)}
+.wheelhero{margin:10px 0 2px;padding:14px 16px;border:1px solid rgba(120,160,255,.35);border-radius:14px;background:linear-gradient(135deg,rgba(120,160,255,.08),rgba(120,160,255,.02) 55%),var(--card)}
+.wheelhero[hidden]{display:none}
+.whrow{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.wheelbox{position:relative;width:170px;height:170px;flex:0 0 auto}
+.wheelbox .ptr{position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:13px solid #fff;z-index:2}
+#wheel{width:170px;height:170px;border-radius:50%;border:3px solid var(--line);box-shadow:0 0 24px rgba(120,160,255,.15) inset}
+.wheelmid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.wheelmid b{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 11px;font-size:12px;max-width:110px;text-align:center}
+.wcol{flex:1 1 190px;min-width:180px}
+.wttl{font-size:15px;font-weight:800}
+.wttl b{color:#8fb4ff}
+.wsub{font-size:11.5px;color:var(--dim);margin-top:3px}
+.oodds{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.oodds span{font-size:10.5px;background:var(--card2);border-radius:999px;padding:3px 8px;color:var(--dim)}
+.oodds i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
+.wcount{font-size:22px;font-weight:800;color:#8fb4ff;font-variant-numeric:tabular-nums;margin-top:4px}
+.wheelhero button{border:1px solid rgba(120,160,255,.45);background:rgba(120,160,255,.14);color:#a9c4ff;font-weight:800;border-radius:10px;padding:11px 16px;font-size:13px;margin-top:8px}
+.clearbtn{border:1px solid var(--line);background:var(--card2);color:var(--dim);font-size:10px;font-weight:700;border-radius:999px;padding:3px 9px;margin-right:8px;vertical-align:2px}
+.clearbtn.sure{border-color:rgba(255,87,115,.5);color:var(--down)}
+.bform{width:100%;display:flex;flex-wrap:wrap;gap:7px;margin-top:10px;padding-top:10px;border-top:1px dashed rgba(255,204,0,.25)}
+.bform select,.bform input{background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:9px;color:#fff;font-size:12.5px}
+.bform input{flex:1 1 150px}
 .hint{grid-column:1/-1;font-size:11.5px;color:var(--dim);margin-top:6px}
 .hint b{color:var(--gold)}
 .pending{grid-column:1/-1}
@@ -176,6 +198,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 </div>
 
 <div class="bountyhero" id="bounty" hidden></div>
+<div class="wheelhero" id="wheelhero" hidden></div>
 <div class="cols">
   <div>
     <div class="card gauge">
@@ -204,7 +227,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 
   <div>
     <div class="card">
-      <h2>📋 Live Incident Report <span style="float:right;font-weight:400" id="fcount"></span></h2>
+      <h2>📋 Live Incident Report <span style="float:right;font-weight:400"><button id="clearlog" class="clearbtn" title="wipe the incident log">clear log</button><span id="fcount"></span></span></h2>
       <div class="if">
         <select id="if-p"><option value="">who did it…</option></select>
         <input type="text" id="if-x" maxlength="70" placeholder="what did they do?" enterkeyhint="done">
@@ -545,7 +568,7 @@ function buildGauge(){
   </svg>`;
 }
 let lastScore=null;
-function render(){ autoView();
+function render(){ autoView(); renderWheel();
   if(!state) return;
   const players=Object.values(state.players).map(p=>({id:p.id,name:p.name,hs:!!p.hs,score:scoreOf(p.id)}))
     .sort((a,b)=>b.score-a.score);
@@ -577,32 +600,52 @@ function render(){ autoView();
 
   const now=Date.now();
   (state.bounties||[]).forEach(b=>{
+    if(b.status==="armed" && now>=b.earliest){
+      b.status="open"; b.t0=now; b.t1=now+7*86400000; mutate(()=>{});
+    }
     if((b.status==="open"||b.status==="claimed") && now>b.t1){
       b.status="lost";
       if(!state.events.some(x=>x.id==="bounty-lost-"+b.id))
         state.events.push({id:"bounty-lost-"+b.id,p:b.p,d:-b.pen,x:b.desc+" — expired, never cracked it",t:now,st:"live"});
     }});
   const bots=(state.bounties||[]).filter(b=>b.status!=="gone");
-  $("bounty").hidden = bots.length===0;
+  const member = !!(ME && ME.id && state.players[ME.id]);
+  const pendProp = (state.bounties||[]).some(b=>b.status==="propose");
+  $("bounty").hidden = bots.length===0 && !member;
+  const others = Object.keys(state.players).filter(id=>id!==(bots.find(b=>b.status==="propose")||{}).p).length;
+  let postRow = "";
+  if(member && !pendProp && !bots.some(b=>b.status==="open"||b.status==="claimed"||b.status==="armed")){
+    postRow = bformOpen
+      ? `<span class="bico">⚔</span><div class="bmain"><div class="bttl">Post a bounty</div><div class="bsub">Everyone except the subject must approve before it starts · bounties may start at most every 2 weeks · pays +N with 3 witnesses, auto −5 if unclaimed</div></div>
+         <div class="bform"><select id="b-p"></select><input id="b-x" maxlength="60" placeholder="the challenge, e.g. beat Alex at mario kart this weekend"><input id="b-d" type="number" min="5" max="99" value="20" style="flex:0 0 70px" title="reward"><button id="bpostgo">file it ➤</button></div>`
+      : `<span class="bico">⚔</span><div class="bmain"><div class="bttl">No bounty on the board</div><div class="bsub">Put a target and a prize on someone — needs everyone's blessing to start</div></div><button id="bpost">⚔ post a bounty</button>`;
+  }
   $("bounty").innerHTML = bots.map(b=>{
     const p=state.players[b.p], hrs=Math.max(0,Math.ceil((b.t1-now)/3600000));
     const left = hrs>=48 ? Math.ceil(hrs/24)+"d left" : hrs+"h left";
+    const needAll = Object.keys(state.players).length-1;
     const st = b.status==="won" ? '<span class="bst st-won">✅ CLAIMED · +'+b.d+' paid</span>'
       : b.status==="lost" ? '<span class="bst st-lost">☠️ FAILED · −'+b.pen+' collected</span>'
       : b.status==="claimed" ? '<span class="bst st-claimed">⚖ '+b.aps.length+' of '+b.need+' witnesses</span>'
+      : b.status==="propose" ? '<span class="bst st-claimed">🗳 '+b.aps.length+' of '+needAll+' approve</span>'
+      : b.status==="armed" ? '<span class="bst st-open">⌛ starts in '+Math.ceil((b.earliest-now)/86400000)+'d</span>'
       : '<span class="bst st-open">ACTIVE</span>';
     const mine = ME && ME.id===b.p && b.status==="open";
     const canSign = ME && ME.id!=="" && ME.id!==b.p && b.status==="claimed" && !(b.aps||[]).includes(ME.name);
+    const canProp = member && ME.id!==b.p && b.status==="propose" && !(b.aps||[]).includes(ME.name);
+    const propBtn = canProp?`<button data-bprop="${b.id}">🗳 approve as ${esc(ME.name)}</button>`:"";
     const dots = Array.from({length:b.need},(_,i)=>`<i class="bdot${i<(b.aps||[]).length?" on":""}"></i>`).join("");
     const score=scoreOf(b.p);
     return `<span class="bico">⚔</span><div class="bmain">
       <div class="bttl"><b>${esc(p?p.name:"???")}</b> — ${esc(b.desc)} · now ${score}${b.status==="open"||b.status==="claimed"?" · "+left:""}</div>
-      <div class="bsub">claim pays +${b.d} with ${b.need} witnesses · no claim by the deadline = automatic −${b.pen}</div></div>
+      <div class="bsub">${b.status==="propose" ? "starts only when every other member approves" : "claim pays +"+b.d+" with "+b.need+" witnesses · no claim by the deadline = automatic −"+b.pen}</div></div>
       ${st}${b.status==="claimed"?`<span class="bdots">${dots}</span>`:""}
       ${mine?`<button data-bclaim="${b.id}">✓ I did it — claim +${b.d}</button>`:""}
       ${canSign?`<button data-bsign="${b.id}">⚖ sign as ${esc(ME.name)}</button>`:""}
+      ${propBtn}
       ${(b.aps||[]).length?`<span class="bwho">signed: ${esc(b.aps.join(", "))}</span>`:""}`;
-  }).join("");
+  }).join("") + postRow;
+  const sel=$("b-p"); if(sel){ sel.innerHTML=Object.values(state.players).filter(p=>!(state.bounties||[]).some(x=>x.status==="propose"&&x.p===p.id)).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(""); }
 
   const pend=state.events.filter(e=>e.st==="pending").sort((a,b)=>a.t-b.t);
   $("pending").innerHTML = pend.map(e=>{
@@ -938,6 +981,126 @@ window.addEventListener("load",()=>{
   };
 });
 
+
+/* ===== v8: Monday wheel, bounty proposals, clear log ===== */
+var bformOpen=false, spinBusy=false;
+const WHEEL_KICK=1794758400000; /* Mon 16 Nov 2026, 00:00 AWST */
+const WCOL=["#ff5f6d","#ffb347","#ffe066","#7ce38b","#5aa9ff","#c792ea"];
+function wkKey(t){ const d=Math.floor((t+288e5)/864e5); return (d-((d%7)+3)%7)*864e5-288e5; } /* Monday 00:00 AWST epoch ms */
+function wheelOdds(){
+  const scored=Object.keys(state.players).map(id=>({id,s:scoreOf(id)})).sort((a,b)=>a.s-b.s);
+  const n=scored.length, ws=scored.map((_,i)=>Math.pow(2,n-1-i));
+  const tot=ws.reduce((a,b)=>a+b,0);
+  return scored.map((o,i)=>({id:o.id,pct:ws[i]/tot,col:WCOL[i%WCOL.length]}));
+}
+function wheelPick(o){ let r=Math.random(),acc=0; for(const x of o){acc+=x.pct; if(r<acc) return x.id;} return o[o.length-1].id; }
+function fmtLeft(ms){ if(ms<0)ms=0; const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);
+  return d?d+"d "+h+"h "+m+"m":h?h+"h "+m+"m":m+"m"; }
+function renderWheel(){
+  const el=$("wheelhero"); if(!el) return;
+  const W=state.wheel || (state.wheel={next:WHEEL_KICK,hist:[]});
+  const now=Date.now();
+  const member=!!(ME && ME.id && state.players[ME.id]);
+  const _last=(W.hist||[]).slice(-1)[0];
+  const spun = _last && wkKey(_last.at)===wkKey(now) ? _last : null;
+  const due=now>=W.next;
+  el.hidden=false;
+  if(spinBusy) return;
+  let html="";
+  if(spun){
+    const p=state.players[spun.p];
+    html=`<div class="whrow"><span style="font-size:26px">🎯</span><div class="wcol">
+      <div class="wttl">The wheel favoured <b>${esc(p?p.name:"a lost soul")}</b> — +20 T of divine intervention</div>
+      <div class="wsub">spun this Monday · next spin in <b>${fmtLeft(W.next-now)}</b></div></div></div>`;
+  } else if(due && member){
+    const odds=wheelOdds(); let a=0;
+    const segs=odds.map(o=>{const a0=a; a+=o.pct*360; return `${o.col} ${a0.toFixed(1)}deg ${a.toFixed(1)}deg`;}).join(",");
+    html=`<div class="whrow"><div class="wheelbox"><span class="ptr"></span>
+      <div id="wheel" style="background:conic-gradient(from -90deg,${segs})"></div>
+      <div class="wheelmid"><b>MONDAY<br>WHEEL</b></div></div>
+      <div class="wcol"><div class="wttl">The <b>Monday Wheel</b> is live</div>
+        <div class="wsub">lands on low T. whoever it picks gets +20 — one spin this week, first hand on the button wins it</div>
+        <div class="oodds">${odds.map(o=>`<span><i style="background:${o.col}"></i>${esc(state.players[o.id].name)} ${Math.round(o.pct*100)}%</span>`).join("")}</div>
+        <button data-spin="1">🎡 SPIN THE WHEEL</button></div></div>`;
+  } else {
+    const when = due? W.next+6048e5 : W.next;
+    const odds=wheelOdds();
+    html=`<div class="whrow"><span style="font-size:26px">🎡</span><div class="wcol">
+      <div class="wttl">The <b>Monday Wheel</b> returns every Monday</div>
+      <div class="wsub">weighted against the alpha — last place gets the best odds</div>
+      <div class="wcount" id="wcount">${fmtLeft(when-now)}</div>
+      <div class="oodds">${odds.map(o=>`<span><i style="background:${o.col}"></i>${esc(state.players[o.id].name)} ${Math.round(o.pct*100)}%</span>`).join("")}</div>
+      ${due&&!member?'<div class="wsub">sign in to spin</div>':""}</div></div>`;
+  }
+  el.innerHTML=html;
+  const c=$("wcount"); if(c) setInterval(()=>{ const el2=$("wcount"); if(el2) el2.textContent=fmtLeft(when-now+(Date.now()-now)); },30000);
+}
+$("wheelhero").addEventListener("click",e=>{
+  const b=e.target.closest("[data-spin]"); if(!b||spinBusy) return;
+  spinBusy=true;
+  const odds=wheelOdds(), win=wheelPick(odds);
+  let cum=0,center=0; for(const o of odds){ const span=o.pct*360; if(o.id===win){center=cum+span/2;break;} cum+=span; }
+  const wheel=$("wheel"), R=360*5+(360-center);
+  requestAnimationFrame(()=>{ wheel.style.transition="transform 4.2s cubic-bezier(.08,.72,.1,1)"; wheel.style.transform="rotate("+R+"deg)"; });
+  setTimeout(()=>{
+    pullFresh(()=>{ mutate(st=>{
+      st.wheel=st.wheel||{next:WHEEL_KICK,hist:[]};
+      if((st.wheel.hist||[]).some(h=>wkKey(h.at)>=wkKey(Date.now()))){ flashToast("someone beat you to the spin"); spinBusy=false; render(); return; }
+      st.wheel.hist.push({at:Date.now(),p:win,until:st.wheel.next});
+      st.events.push({id:"wheel-"+wkKey(Date.now()),p:win,d:20,x:"the Monday wheel chose you — divine intervention",t:Date.now(),st:"live"});
+      st.wheel.next = wkKey(Date.now())+6048e5;
+    }); spinBusy=false; ding(740); });
+  },4400);
+});
+/* bounty proposals + posting */
+$("bounty").addEventListener("click",e=>{
+  const t=e.target;
+  if(t.id==="bpost"){ bformOpen=true; render(); return; }
+  const pr=t.closest("[data-bprop]");
+  if(pr){
+    if(!ME||ME.id===""){flashToast("first say who you are");return;}
+    t.disabled=true;
+    pullFresh(()=>{ mutate(st=>{ const bo=st.bounties.find(x=>x.id===pr.dataset.bprop);
+      if(bo && bo.status==="propose" && ME.id!==bo.p && !bo.aps.includes(ME.name)){
+        bo.aps.push(ME.name);
+        const needAll=Object.keys(st.players).length-1;
+        if(bo.aps.length>=needAll){
+          const started=(st.bounties||[]).filter(x=>x.t0).map(x=>x.t0).concat([0]);
+          const earliest=Math.max.apply(null,started)+14*864e5;
+          bo.earliest=Math.max(earliest,Date.now());
+          bo.status="armed"; }
+      }}); ding(600); });
+    return;
+  }
+  if(t.id==="bpostgo"){
+    if(!ME||ME.id===""){flashToast("first say who you are");return;}
+    const pid=$("b-p").value, desc=$("b-x").value.trim()||"prove it", d=Math.max(5,Math.min(99,parseInt($("b-d").value)||20));
+    if(!pid){flashToast("pick a subject");return;}
+    t.disabled=true;
+    pullFresh(()=>{ mutate(st=>{
+      const started=(st.bounties||[]).filter(x=>x.t0).map(x=>x.t0).concat([0]);
+      st.bounties.push({id:"b"+Date.now().toString(36),p:pid,desc:desc,d:d,pen:Math.max(5,Math.round(d/4)),need:3,
+        t0:0,t1:0,status:"propose",aps:ME.id===pid?[]:[ME.name],earliest:Math.max(Math.max.apply(null,started)+14*864e5,Date.now())});
+    }); bformOpen=false; ding(520); });
+  }
+});
+/* clear log (double-tap) */
+(function(){
+  let arm=0;
+  const b=$("clearlog"); if(!b) return;
+  b.onclick=()=>{
+    if(!ME||ME.id===""){flashToast("sign in first");return;}
+    if(Date.now()-arm<4000){
+      pullFresh(()=>{ mutate(st=>{ st.events=[]; }); flashToast("log wiped — history reborn");
+        b.classList.remove("sure"); b.textContent="clear log"; });
+      arm=0;
+    } else {
+      arm=Date.now(); b.classList.add("sure"); b.textContent="sure?";
+      setTimeout(()=>{ if(Date.now()-arm>=4000){b.classList.remove("sure");b.textContent="clear log";} },4200);
+    }
+  };
+})();
+render();
 </script>
 </body>
 </html>
