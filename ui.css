@@ -1,0 +1,47 @@
+/* Apex T — UI refresh. Loaded AFTER the inline <style>; touches presentation only. */
+:root{--up:#39d98a;--down:#ff4d5e;--fg:#e8ecf4;--mut:#8a93a6;--disp:ui-rounded,"SF Pro Rounded",system-ui,sans-serif;--r:18px}
+body{background:radial-gradient(900px 420px at 50% -120px,color-mix(in srgb,var(--gold) 14%,transparent),transparent 70%),#0b0d12;min-height:100vh}
+header{margin-bottom:22px}
+h1{font-family:var(--disp);font-weight:900;font-size:clamp(26px,6vw,40px);letter-spacing:.04em}
+h1 b{text-shadow:0 0 22px color-mix(in srgb,var(--gold) 55%,transparent)}
+.sub{max-width:460px;margin:6px auto 0;line-height:1.45}
+.syncpill{background:rgba(255,255,255,.03);padding:5px 6px 5px 12px}
+.syncpill i{box-shadow:0 0 8px var(--green)}.syncpill.off i{box-shadow:0 0 8px var(--red)}
+#icontile{box-shadow:0 6px 18px rgba(0,0,0,.5);border:1px solid var(--line)}
+.mebadge{padding:6px 12px;display:inline-block;background:rgba(255,255,255,.04);border-radius:999px}
+.card{background:linear-gradient(180deg,#181d28,#141821);border:1px solid #232a3a;border-radius:var(--r);padding:18px;box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 14px 30px -18px rgba(0,0,0,.8)}
+h2{font-size:11.5px;letter-spacing:.16em;font-weight:700}
+.gauge{padding-bottom:22px}
+.score{font-family:var(--disp);font-size:64px;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.tier{margin-top:6px;font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:.14em}
+.needle{filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+.lb li{padding:11px 10px;border-bottom:0;border-radius:12px;margin-bottom:4px;transition:background .2s}
+.lb li:hover{background:rgba(255,255,255,.03)}
+.lb li.sel{background:color-mix(in srgb,var(--gold) 10%,#1a1f2b);box-shadow:inset 3px 0 0 var(--gold)}
+.pname{font-size:15px;cursor:pointer}
+.rank{font-size:15px}
+.bar{height:10px;width:96px;background:#10131b;box-shadow:inset 0 1px 2px rgba(0,0,0,.6)}
+.pts{font-size:15px;font-variant-numeric:tabular-nums}
+button{border-radius:12px;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 6px 14px -8px var(--gold);transition:transform .12s,filter .15s}
+button:hover{filter:brightness(1.08)}
+button.ghost,.chip,#syncbtn,.clearbtn,.rnbtn,#unlockbtns button,.obs,.hbtn{box-shadow:none}
+.dctl .chip{border-radius:10px;font-family:var(--mono);font-weight:700;min-width:46px}
+.dctl .chip:hover{border-color:var(--gold);color:var(--gold)}
+select,input[type=text],input[type=number],.bform input,.bform select{border-radius:12px;transition:border-color .15s,box-shadow .15s}
+:is(select,input,button):focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+input:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent);outline:0}
+.feed li{padding:10px 6px;font-size:13.5px}
+.prow{border-radius:14px;background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 8%,transparent),transparent),var(--card2)}
+.bountyhero,.wheelhero{border-radius:var(--r);box-shadow:0 14px 30px -20px #000}
+.wheelbox,#wheel{filter:drop-shadow(0 8px 16px rgba(0,0,0,.5))}
+.hs{border-radius:12px;background:rgba(57,217,138,.05)}
+.hint,.small{line-height:1.5}
+#idmask,#gym,#prefs,#rnmask{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(6,8,12,.82);backdrop-filter:blur(8px)}
+#idmask[hidden],#gym[hidden],#prefs[hidden],#rnmask[hidden]{display:none}
+.idcard{position:relative;background:linear-gradient(180deg,#1a1f2b,#141821);border:1px solid #2a3142;border-radius:22px;padding:26px;box-shadow:0 30px 70px -20px #000}
+#idlist button{border-radius:12px;padding:13px;background:#1b2130}
+#idlist button:hover{border-color:var(--gold)}
+#toast{border-radius:14px;backdrop-filter:blur(10px);background:rgba(29,35,48,.92);box-shadow:0 12px 30px -10px #000}
+footer{opacity:.7}
+@media(max-width:520px){.bar{width:64px}.score{font-size:56px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
