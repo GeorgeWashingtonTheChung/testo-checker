@@ -148,7 +148,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 <div id="idmask" hidden>
   <div class="idcard">
     <h2>Who are you?</h2>
-    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Wearing a name requires a one-time authorisation code from the board; the code burns after use. Observing is free.</p>
+    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Picking your name here is free; <b>changing it later</b> costs a one-time authorisation code from the board. Observing is always free.</p>
     <input id="idpw" placeholder="one-time authorisation code" maxlength="40" autocomplete="off" spellcheck="false" style="width:100%;background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:10px;color:#fff;margin:0 0 10px">
     <div id="idlist"></div>
     <div id="idout" class="idsub" style="margin:8px 0 0"></div>
@@ -642,6 +642,7 @@ window.addEventListener("load",()=>{
     const b=e.target.closest("[data-me]"); if(!b) return;
     const pid=b.dataset.me, out=$("idout");
     if(ME && ME.id===pid){ $("idmask").hidden=true; return; }
+    if(!ME || ME.id===""){ setMe(pid); return; }   // first pick is free
     if(!state.pw){ out.textContent="no authorisation codes issued yet"; return; }
     const pw=$("idpw").value.trim();
     if(!pw){ out.textContent="a one-time code is required to wear a name"; return; }
