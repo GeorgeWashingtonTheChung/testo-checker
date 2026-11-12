@@ -87,6 +87,26 @@ button:active{transform:scale(.97)}
 .dctl input[type=number]{width:86px;flex:0 0 auto;text-align:center;font-family:var(--mono);font-weight:800;font-size:16px}
 .dctl .chip{flex:0 0 auto;padding:9px 11px;font-size:13px;background:var(--card2);color:var(--ink);border:1px solid var(--line)}
 .dctl #if-log{flex:1}
+.bountyhero{margin:14px 0 2px;padding:14px 16px;border:1px solid rgba(255,204,0,.35);border-radius:14px;background:linear-gradient(135deg,rgba(255,204,0,.07),rgba(255,204,0,.02) 55%),var(--card);display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.bountyhero[hidden]{display:none}
+.bountyhero .bico{font-size:26px}
+.bountyhero .bmain{flex:1 1 220px;min-width:200px}
+.bountyhero .bttl{font-size:15px;font-weight:800;letter-spacing:.02em}
+.bountyhero .bttl b{color:var(--gold)}
+.bountyhero .bsub{font-size:11.5px;color:var(--dim);margin-top:3px}
+.bountyhero .bst{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.bountyhero .st-open{background:rgba(78,224,138,.12);color:var(--up)}
+.bountyhero .st-claimed{background:rgba(255,204,0,.14);color:var(--gold)}
+.bountyhero .st-won{background:rgba(78,224,138,.18);color:var(--up)}
+.bountyhero .st-lost{background:rgba(255,87,115,.15);color:var(--down)}
+.bountyhero .bdots{display:flex;gap:5px;align-items:center}
+.bountyhero .bdot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.bountyhero .bdot.on{background:var(--gold)}
+.bountyhero button{border:1px solid rgba(255,204,0,.4);background:rgba(255,204,0,.12);color:var(--gold);font-weight:700;border-radius:9px;padding:9px 13px;font-size:12.5px}
+.bountyhero .bwho{font-size:11px;color:var(--dim);width:100%}
+.enr summary{cursor:pointer;font-size:12px;color:var(--dim);list-style:none}
+.enr summary::-webkit-details-marker{display:none}
+.enr summary:hover{color:var(--gold)}
 .hint{grid-column:1/-1;font-size:11.5px;color:var(--dim);margin-top:6px}
 .hint b{color:var(--gold)}
 .pending{grid-column:1/-1}
@@ -138,8 +158,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 <div class="wrap">
 <header>
   <h1 id="logo">◤◢ APEX <b id="t">T</b></h1>
-  <div class="sub">The Testosterone Index™ — 0% scientific rigour*, live-synced to everyone. Scale: −500 … +500.</div>
-  <div class="sub fine">*rigour: none. methodology: vibes. incidents age out after 7 days — history is written in protein powder.</div>
+  <div class="sub">The Testosterone Index™ · live-synced · ±500 · incidents age out after 7 days</div>
   <div class="syncpill" id="pill"><i></i><span id="pilltxt">connecting…</span><button id="syncbtn" title="Force refresh">⟳</button></div>
   <span id="unlockbtns"></span>
   <canvas id="icontile" width="64" height="64" style="vertical-align:middle;margin-left:8px;border-radius:12px;width:52px;height:52px" title="your app icon right now"></canvas>
@@ -148,7 +167,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
 <div id="idmask" hidden>
   <div class="idcard">
     <h2>Who are you?</h2>
-    <p class="idsub">The app remembers this <b>on this device</b> — even after reloads or opening from your home screen. Picking your name here is free; <b>changing it later</b> costs a one-time authorisation code from the board. Observing is always free.</p>
+    <p class="idsub">Remembered on this device. First pick is free; <b>changing later</b> costs a one-time code.</p>
     <input id="idpw" placeholder="one-time authorisation code" maxlength="40" autocomplete="off" spellcheck="false" style="width:100%;background:#0b0d12;border:1px solid var(--line);border-radius:8px;padding:10px;color:#fff;margin:0 0 10px">
     <div id="idlist"></div>
     <div id="idout" class="idsub" style="margin:8px 0 0"></div>
@@ -156,6 +175,7 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
   </div>
 </div>
 
+<div class="bountyhero" id="bounty" hidden></div>
 <div class="cols">
   <div>
     <div class="card gauge">
@@ -164,16 +184,18 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
       <div class="score-line">
         <div class="score" id="score">--</div>
         <div class="tier" id="tier">no subject</div>
-        <div class="who" id="who">tap a name on the board to begin the study</div>
+        <div class="who" id="who">pick yourself to begin</div>
       </div>
     </div>
 
     <div class="card">
       <h2>Subject Pool <span style="float:right;font-weight:400" id="pcount"></span></h2>
-      <div class="row">
+      <details class="enr"><summary>＋ enroll a new subject</summary>
+      <div class="row" style="margin-top:8px">
         <input type="text" id="pname" maxlength="16" placeholder="Name of the subject…" enterkeyhint="done">
         <button id="addp" style="flex:0 0 auto">Enroll ➤</button>
       </div>
+      </details>
       <ul class="lb" id="lb"></ul>
       <div class="small">Scores start at <b>50</b> (baseline). The index spans <b>−500 to +500</b> — the scale officially ends at 0, unofficially it goes much, much lower. <b>Tap a name</b> to make them the subject.</div>
       <div class="hs" id="hs"></div>
@@ -194,10 +216,9 @@ footer{text-align:center;color:var(--dim);font-size:11px;margin-top:22px}
           <button class="chip" data-set="25">+25</button>
           <button id="if-log">Log it ➤</button>
         </div>
-        <div class="pending" id="bounty"></div>
         <div class="pending" id="pending"></div>
         <ul class="feed" id="feed"></ul>
-        <div class="hint">Anything <b>±15 or bigger</b> is filed as a <b>pending proposal</b> — <b>two</b> members other than the subject must approve it before it counts (the filer counts as one). Smaller swings apply immediately.</div>
+        <div class="hint">Swings of <b>±15+</b> need <b>2 approvals</b> (the filer counts, the subject can't). Under that applies instantly.</div>
       </div>
     </div>
   </div>
@@ -556,20 +577,26 @@ function render(){
       if(!state.events.some(x=>x.id==="bounty-lost-"+b.id))
         state.events.push({id:"bounty-lost-"+b.id,p:b.p,d:-b.pen,x:b.desc+" — expired, never cracked it",t:now,st:"live"});
     }});
-  const bots=(state.bounties||[]);
+  const bots=(state.bounties||[]).filter(b=>b.status!=="gone");
+  $("bounty").hidden = bots.length===0;
   $("bounty").innerHTML = bots.map(b=>{
-    const p=state.players[b.p], daysLeft=Math.max(0,Math.ceil((b.t1-now)/86400000));
-    const stc = b.status==="won" ? '✅ CLAIMED' : b.status==="lost" ? '☠️ FAILED — '+b.pen+' T collected' : b.status==="claimed" ?
-      (b.aps||[]).length+" of "+b.need+" witnesses signed — pending" : "ACTIVE";
+    const p=state.players[b.p], hrs=Math.max(0,Math.ceil((b.t1-now)/3600000));
+    const left = hrs>=48 ? Math.ceil(hrs/24)+"d left" : hrs+"h left";
+    const st = b.status==="won" ? '<span class="bst st-won">✅ CLAIMED · +'+b.d+' paid</span>'
+      : b.status==="lost" ? '<span class="bst st-lost">☠️ FAILED · −'+b.pen+' collected</span>'
+      : b.status==="claimed" ? '<span class="bst st-claimed">⚖ '+b.aps.length+' of '+b.need+' witnesses</span>'
+      : '<span class="bst st-open">ACTIVE · '+left+'</span>';
     const mine = ME && ME.id===b.p && b.status==="open";
     const canSign = ME && ME.id!=="" && ME.id!==b.p && b.status==="claimed" && !(b.aps||[]).includes(ME.name);
+    const dots = Array.from({length:b.need},(_,i)=>`<i class="bdot${i<(b.aps||[]).length?" on":""}"></i>`).join("");
     const score=scoreOf(b.p);
-    return `<div class="prow" style="border-color:rgba(255,204,0,.25)"><div class="ph">
-      <span class="pd up">⚔ BOUNTY ${b.d}</span> on <span class="pwho">${esc(p?p.name:"???")}</span> — ${esc(b.desc)}
-      · now ${score} · ${daysLeft}d left · ${stc}
-      ${(b.aps||[]).length?`<i style="opacity:.55;font-size:11px"> · signed: ${esc(b.aps.join(", "))}</i>`:""}</div>
-      <div class="pctl">${mine?`<button data-bclaim="${b.id}">✓ I did it — claim the ${b.d}</button>`:""}
-      ${canSign?`<button data-bsign="${b.id}">⚖ witness as ${esc(ME.name)} (witnesses ${Math.min((b.aps||[]).length+1,b.need)}/${b.need})</button>`:""}</div></div>`;
+    return `<span class="bico">⚔</span><div class="bmain">
+      <div class="bttl"><b>${esc(p?p.name:"???")}</b> — ${esc(b.desc)} · now ${score}${b.status==="open"||b.status==="claimed"?" · "+left:""}</div>
+      <div class="bsub">claim pays +${b.d} with ${b.need} witnesses · no claim by the deadline = automatic −${b.pen}</div></div>
+      ${st}${b.status==="claimed"?`<span class="bdots">${dots}</span>`:""}
+      ${mine?`<button data-bclaim="${b.id}">✓ I did it — claim +${b.d}</button>`:""}
+      ${canSign?`<button data-bsign="${b.id}">⚖ sign as ${esc(ME.name)}</button>`:""}
+      ${(b.aps||[]).length?`<span class="bwho">signed: ${esc(b.aps.join(", "))}</span>`:""}`;
   }).join("");
 
   const pend=state.events.filter(e=>e.st==="pending").sort((a,b)=>a.t-b.t);
